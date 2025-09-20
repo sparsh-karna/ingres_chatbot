@@ -1,0 +1,7 @@
+.env
+myEnv/
+.DS_Store
+__pycache__/
+*.pyc
+.vscode/
+column_mappings*.json
