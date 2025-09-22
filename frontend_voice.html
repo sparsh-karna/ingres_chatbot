@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INGRES AI ChatBot - Debug Version</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #1f4e79, #2c5282);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .chat-container {
+            height: 400px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            overflow-y: auto;
+            background-color: #f8fafc;
+        }
+
+        .debug-container {
+            height: 200px;
+            border: 2px solid #f59e0b;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            overflow-y: auto;
+            background-color: #fffbeb;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+
+        .message.user {
+            background-color: #667eea;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .message.assistant {
+            background-color: #e2e8f0;
+            color: #333;
+        }
+
+        .message.voice {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            flex: 1;
+            display: flex;
+            gap: 10px;
+        }
+
+        .text-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background-color: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #5a67d8;
+        }
+
+        .btn-voice {
+            background-color: #f59e0b;
+            color: white;
+        }
+
+        .btn-voice:hover {
+            background-color: #d97706;
+        }
+
+        .btn-voice.recording {
+            background-color: #dc2626;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .voice-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .language-selector {
+            margin-bottom: 20px;
+        }
+
+        .language-selector select {
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .status-indicator {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .status-success {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-error {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-info {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .input-type-toggle {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        .toggle-btn {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-btn:first-child {
+            border-radius: 8px 0 0 8px;
+        }
+
+        .toggle-btn:last-child {
+            border-radius: 0 8px 8px 0;
+        }
+
+        .toggle-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .debug-log {
+            color: #666;
+            margin: 5px 0;
+        }
+
+        .debug-error {
+            color: #dc2626;
+            font-weight: bold;
+        }
+
+        .debug-success {
+            color: #059669;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 INGRES AI ChatBot - Debug</h1>
+            <p>AI-Powered Groundwater Resource Analysis with Voice Support & Debugging</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Input Type Toggle -->
+            <div class="input-type-toggle">
+                <button class="toggle-btn active" onclick="switchInputType('text')">💬 Text Input</button>
+                <button class="toggle-btn" onclick="switchInputType('voice')">🎤 Voice Input</button>
+            </div>
+
+            <!-- Language Selector -->
+            <div class="language-selector">
+                <label for="language">Preferred Language:</label>
+                <select id="language">
+                    <option value="en-IN">English</option>
+                    <option value="hi-IN">Hindi</option>
+                    <option value="ta-IN">Tamil</option>
+                    <option value="te-IN">Telugu</option>
+                    <option value="bn-IN">Bengali</option>
+                </select>
+            </div>
+
+            <!-- Status Indicator -->
+            <div id="status" class="hidden"></div>
+
+            <!-- Debug Container -->
+            <div class="debug-container" id="debugContainer">
+                <div class="debug-log">Debug Console - Request/Response Details:</div>
+            </div>
+
+            <!-- Chat Container -->
+            <div class="chat-container" id="chatContainer">
+                <div class="message assistant">
+                    <strong>Assistant:</strong> Hello! I'm your INGRES AI assistant (Debug Mode). I can help you analyze groundwater resources. You can ask questions using text or voice input.
+                </div>
+            </div>
+
+            <!-- Text Input Section -->
+            <div id="textInputSection" class="input-container">
+                <div class="input-group">
+                    <input type="text" id="questionInput" class="text-input" 
+                           placeholder="Ask about groundwater resources"
+                           onkeypress="handleKeyPress(event)">
+                    <button class="btn btn-primary" onclick="sendTextMessage()">Send</button>
+                </div>
+            </div>
+
+            <!-- Voice Input Section -->
+            <div id="voiceInputSection" class="input-container hidden">
+                <div class="voice-controls">
+                    <button id="recordBtn" class="btn btn-voice" onclick="toggleRecording()">
+                        🎤 Start Recording
+                    </button>
+                    <span id="recordingStatus"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentSessionId = null;
+        let currentInputType = 'text';
+        let isRecording = false;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let stream = null;
+
+        // Debug logging
+        function debugLog(message, type = 'log') {
+            console.log(message);
+            const debugContainer = document.getElementById('debugContainer');
+            const logDiv = document.createElement('div');
+            logDiv.className = `debug-${type}`;
+            logDiv.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            debugContainer.appendChild(logDiv);
+            debugContainer.scrollTop = debugContainer.scrollHeight;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            debugLog('Initializing application...', 'log');
+            createNewSession();
+        });
+
+        // Switch input type
+        function switchInputType(type) {
+            currentInputType = type;
+            
+            // Update toggle buttons
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Show/hide input sections
+            if (type === 'text') {
+                document.getElementById('textInputSection').classList.remove('hidden');
+                document.getElementById('voiceInputSection').classList.add('hidden');
+            } else {
+                document.getElementById('textInputSection').classList.add('hidden');
+                document.getElementById('voiceInputSection').classList.remove('hidden');
+            }
+            
+            debugLog(`Switched to ${type} input mode`, 'log');
+        }
+
+        // Create new chat session
+        async function createNewSession() {
+            try {
+                debugLog('Creating new session...', 'log');
+                showStatus('Creating new session...', 'info');
+                
+                const response = await fetch('http://0.0.0.0:8001/chat/new-session', {
+                    method: 'POST'
+                });
+                
+                debugLog(`Session creation response status: ${response.status}`, 'log');
+                
+                const data = await response.json();
+                debugLog(`Session creation response: ${JSON.stringify(data)}`, 'log');
+                
+                if (data.success) {
+                    currentSessionId = data.session_id;
+                    showStatus('New session created successfully', 'success');
+                    debugLog(`Session created: ${currentSessionId}`, 'success');
+                    setTimeout(() => hideStatus(), 2000);
+                } else {
+                    showStatus('Failed to create session', 'error');
+                    debugLog('Session creation failed', 'error');
+                }
+            } catch (error) {
+                console.error('Error creating session:', error);
+                debugLog(`Session creation error: ${error.message}`, 'error');
+                showStatus('Error creating session', 'error');
+            }
+        }
+
+        // Send text message
+        async function sendTextMessage() {
+            const questionInput = document.getElementById('questionInput');
+            const question = questionInput.value.trim();
+            
+            if (!question) {
+                showStatus('Please enter a question', 'error');
+                return;
+            }
+            
+            debugLog(`Sending text message: ${question}`, 'log');
+            
+            // Add user message to chat
+            addMessageToChat('user', question);
+            questionInput.value = '';
+            
+            // Send request
+            await sendChatRequest({
+                question: question,
+                input_type: 'text',
+                session_id: currentSessionId,
+                language_preference: document.getElementById('language').value
+            });
+        }
+
+        // Handle Enter key press
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendTextMessage();
+            }
+        }
+
+        // Toggle voice recording
+        async function toggleRecording() {
+            if (!isRecording) {
+                await startRecording();
+            } else {
+                await stopRecording();
+            }
+        }
+
+        // Start voice recording
+        async function startRecording() {
+            try {
+                debugLog('Starting voice recording...', 'log');
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+                
+                // Use supported MIME type
+                const options = { 
+                    mimeType: 'audio/webm;codecs=opus'
+                };
+                
+                // Fallback for different browsers
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options.mimeType = 'audio/webm';
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        options.mimeType = 'audio/mp4';
+                        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                            delete options.mimeType;
+                        }
+                    }
+                }
+                
+                debugLog(`Using MIME type: ${options.mimeType || 'default'}`, 'log');
+                
+                mediaRecorder = new MediaRecorder(stream, options);
+                recordedChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                        debugLog(`Audio chunk received: ${event.data.size} bytes`, 'log');
+                    }
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    debugLog('Recording stopped, processing audio...', 'log');
+                    const audioBlob = new Blob(recordedChunks, { type: 'audio/wav' });
+                    debugLog(`Audio blob size: ${audioBlob.size} bytes`, 'log');
+                    await processAudioRecording(audioBlob);
+                };
+                
+                mediaRecorder.start(1000); // Record in 1-second chunks
+                isRecording = true;
+                
+                // Update UI
+                const recordBtn = document.getElementById('recordBtn');
+                recordBtn.textContent = '⏹️ Stop Recording';
+                recordBtn.classList.add('recording');
+                
+                document.getElementById('recordingStatus').textContent = 'Recording...';
+                showStatus('Recording audio...', 'info');
+                debugLog('Recording started successfully', 'success');
+                
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                debugLog(`Recording start error: ${error.message}`, 'error');
+                showStatus('Error accessing microphone', 'error');
+            }
+        }
+
+        // Stop voice recording
+        async function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                debugLog('Stopping recording...', 'log');
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                // Stop all tracks to release microphone
+                if (stream) {
+                    stream.getTracks().forEach(track => {
+                        track.stop();
+                        debugLog('Media track stopped', 'log');
+                    });
+                }
+                
+                // Update UI
+                const recordBtn = document.getElementById('recordBtn');
+                recordBtn.textContent = '🎤 Start Recording';
+                recordBtn.classList.remove('recording');
+                
+                document.getElementById('recordingStatus').textContent = '';
+                showStatus('Processing audio...', 'info');
+            }
+        }
+
+        // Process audio recording
+        async function processAudioRecording(audioBlob) {
+            try {
+                debugLog('Converting audio to base64...', 'log');
+                
+                // Convert blob to base64
+                const audioBase64 = await blobToBase64(audioBlob);
+                const base64Data = audioBase64.split(',')[1]; // Remove data:audio/wav;base64, prefix
+                
+                debugLog(`Base64 data length: ${base64Data.length}`, 'log');
+                
+                // Add user message indicating voice input
+                addMessageToChat('user', '🎤 Voice message', true);
+                
+                // Prepare request data
+                const requestData = {
+                    audio_data: base64Data,
+                    input_type: 'voice',
+                    session_id: currentSessionId,
+                    language_preference: document.getElementById('language').value
+                };
+                
+                debugLog(`Request data prepared: ${JSON.stringify({
+                    ...requestData,
+                    audio_data: `[${requestData.audio_data.length} chars]`
+                })}`, 'log');
+                
+                // Send chat request with audio
+                await sendChatRequest(requestData);
+                
+            } catch (error) {
+                console.error('Error processing audio:', error);
+                debugLog(`Audio processing error: ${error.message}`, 'error');
+                showStatus('Error processing audio recording', 'error');
+            }
+        }
+
+        // Convert blob to base64
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    debugLog('Base64 conversion completed', 'log');
+                    resolve(reader.result);
+                };
+                reader.onerror = (error) => {
+                    debugLog(`Base64 conversion error: ${error}`, 'error');
+                    reject(error);
+                };
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        // Send chat request
+        async function sendChatRequest(requestData) {
+            try {
+                debugLog('Sending chat request...', 'log');
+                showStatus('Processing your request...', 'info');
+                
+                const response = await fetch('http://0.0.0.0:8001/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                debugLog(`Response status: ${response.status} ${response.statusText}`, 'log');
+                
+                // Get response text first for debugging
+                const responseText = await response.text();
+                debugLog(`Raw response: ${responseText.substring(0, 500)}...`, 'log');
+                
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    debugLog(`JSON parse error: ${parseError.message}`, 'error');
+                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}`);
+                }
+                
+                if (response.ok && data.success) {
+                    debugLog('Request successful', 'success');
+                    
+                    // Display response
+                    const responseText = data.translated_response || data.response;
+                    addMessageToChat('assistant', responseText);
+                    
+                    // Handle audio response for voice input
+                    if (data.audio_response && requestData.input_type === 'voice') {
+                        debugLog('Playing audio response...', 'log');
+                        playAudioResponse(data.audio_response);
+                    }
+                    
+                    // Show detected language if available
+                    if (data.detected_language) {
+                        debugLog(`Detected language: ${data.detected_language}`, 'success');
+                        showStatus(`Detected language: ${data.detected_language}`, 'info');
+                        setTimeout(() => hideStatus(), 3000);
+                    } else {
+                        hideStatus();
+                    }
+                    
+                } else {
+                    const errorMsg = data.error || `HTTP ${response.status}: ${response.statusText}`;
+                    debugLog(`Request failed: ${errorMsg}`, 'error');
+                    showStatus('Error: ' + errorMsg, 'error');
+                    addMessageToChat('assistant', 'Sorry, I encountered an error processing your request.');
+                }
+                
+            } catch (error) {
+                console.error('Error sending request:', error);
+                debugLog(`Request error: ${error.message}`, 'error');
+                showStatus('Network error occurred', 'error');
+                addMessageToChat('assistant', 'Sorry, there was a network error. Please try again.');
+            }
+        }
+
+        // Add message to chat
+        function addMessageToChat(role, message, isVoice = false) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}${isVoice ? ' voice' : ''}`;
+            
+            if (role === 'user') {
+                messageDiv.innerHTML = `<strong>You:</strong> ${message}`;
+            } else {
+                messageDiv.innerHTML = `<strong>Assistant:</strong> ${message}`;
+            }
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Play audio response
+        function playAudioResponse(audioBase64) {
+            try {
+                debugLog('Setting up audio playback...', 'log');
+                const audioBlob = base64ToBlob(audioBase64, 'audio/wav');
+                const audioUrl = URL.createObjectURL(audioBlob);
+                
+                // Create and play audio element
+                const audio = new Audio(audioUrl);
+                audio.play().catch(e => {
+                    debugLog(`Audio play error: ${e.message}`, 'error');
+                    showStatus('Audio response ready but auto-play prevented', 'info');
+                });
+                
+            } catch (error) {
+                console.error('Error playing audio response:', error);
+                debugLog(`Audio playback error: ${error.message}`, 'error');
+                showStatus('Error playing audio response', 'error');
+            }
+        }
+
+        // Convert base64 to blob
+        function base64ToBlob(base64, type) {
+            const binary = atob(base64);
+            const array = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                array[i] = binary.charCodeAt(i);
+            }
+            return new Blob([array], { type });
+        }
+
+        // Show status message
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status-indicator status-${type}`;
+            status.classList.remove('hidden');
+        }
+
+        // Hide status message
+        function hideStatus() {
+            const status = document.getElementById('status');
+            status.classList.add('hidden');
+        }
+
+        // Check browser support on load
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            debugLog('Voice input not supported in this browser', 'error');
+            showStatus('Voice input not supported in this browser', 'error');
+            document.getElementById('voiceInputSection').style.display = 'none';
+        } else {
+            debugLog('Voice input supported', 'success');
+        }
+    </script>
+</body>
+</html>

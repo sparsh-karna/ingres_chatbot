@@ -5,9 +5,11 @@ Route Handlers for INGRES ChatBot FastAPI Backend
 import json
 import logging
 import pandas as pd
+import base64
 from fastapi import HTTPException, Query
 from typing import Dict, List, Optional
 from datetime import datetime
+from io import BytesIO
 
 from models import (
     QueryRequest, ChatRequest, QueryResponse, ChatResponse, 
@@ -29,10 +31,11 @@ logger = logging.getLogger(__name__)
 class Routes:
     """Route handlers for the FastAPI application"""
     
-    def __init__(self, db_manager, query_processor, llm):
+    def __init__(self, db_manager, query_processor, llm, speech_service=None):
         self.db_manager = db_manager
         self.query_processor = query_processor
         self.llm = llm
+        self.speech_service = speech_service
     
     async def root(self) -> Dict[str, str]:
         """Root endpoint"""
@@ -127,7 +130,46 @@ class Routes:
     async def process_chat(self, request: ChatRequest) -> ChatResponse:
         """Process chat message endpoint"""
         try:
-            logger.info(f"Processing chat query: {request.question}")
+            # Process input based on type (text or voice)
+            if request.input_type == "voice":
+                if not request.audio_data:
+                    raise HTTPException(status_code=400, detail="Audio data is required for voice input")
+                
+                if not self.speech_service or not self.speech_service.is_available():
+                    raise HTTPException(status_code=503, detail="Speech service is not available")
+                
+                # Decode audio data
+                try:
+                    audio_bytes = base64.b64decode(request.audio_data)
+                    audio_io = BytesIO(audio_bytes)
+                except Exception as e:
+                    raise HTTPException(status_code=400, detail=f"Invalid audio data: {str(e)}")
+                
+                # Convert speech to text
+                stt_result = self.speech_service.speech_to_text(audio_io)
+                if stt_result["error"]:
+                    raise HTTPException(status_code=500, detail=f"Speech to text failed: {stt_result['error']}")
+                
+                question_text = stt_result["transcript"]
+                detected_language = stt_result["language_code"]
+                
+                if not question_text:
+                    raise HTTPException(status_code=400, detail="Could not transcribe audio")
+                
+                logger.info(f"Processing voice chat query: {question_text} (language: {detected_language})")
+            
+            else:  # text input
+                if not request.question:
+                    raise HTTPException(status_code=400, detail="Question is required for text input")
+                
+                question_text = request.question
+                detected_language = None
+                
+                # Detect language if speech service is available
+                if self.speech_service and self.speech_service.is_available():
+                    detected_language = self.speech_service.detect_language_from_text(question_text)
+                
+                logger.info(f"Processing text chat query: {question_text}")
             
             # Validate and get session ID
             session_id = validate_session_id(request.session_id)
@@ -142,7 +184,7 @@ class Routes:
             enhanced_context = get_enhanced_chat_context(session_id, self.db_manager)
             
             # Create context-aware question if we have previous context
-            contextual_question = create_context_aware_question(request.question, enhanced_context)
+            contextual_question = create_context_aware_question(question_text, enhanced_context)
             
             # Process the query (without visualization for chat)
             result = self.query_processor.process_user_query(
@@ -159,16 +201,36 @@ class Routes:
             
             # Generate enhanced explanation
             explanation = await generate_enhanced_contextual_explanation(
-                request.question, sql_query, result_data, enhanced_context, base_response, self.llm
+                question_text, sql_query, result_data, enhanced_context, base_response, self.llm
             )
             
             # Prepare response data
             response_data = prepare_response_data(result_data)
             csv_data = format_csv_data(result_data)
             
+            # Process multilingual response
+            translated_response = base_response
+            audio_response_data = None
+            
+            if self.speech_service and self.speech_service.is_available() and detected_language:
+                multilingual_output = self.speech_service.process_multilingual_chat_output(
+                    response_text=base_response,
+                    target_language=detected_language,
+                    input_type=request.input_type,
+                    translate_to_english=(detected_language != "en-IN")
+                )
+                
+                if not multilingual_output.get("error"):
+                    translated_response = multilingual_output.get("translated_response", base_response)
+                    if multilingual_output.get("audio_response"):
+                        # Encode audio response as base64
+                        audio_response_data = base64.b64encode(multilingual_output["audio_response"]).decode('utf-8')
+                else:
+                    logger.warning(f"Multilingual processing failed: {multilingual_output['error']}")
+            
             # Add messages to session
             add_enhanced_message_to_session(
-                session_id, request.question, base_response, 
+                session_id, question_text, base_response, 
                 sql_query, result_data, explanation, self.db_manager
             )
             
@@ -189,11 +251,14 @@ class Routes:
                 session_id=session_id,
                 sql_query=sql_query,
                 response=base_response,
+                translated_response=translated_response,
                 explanation=explanation,
                 data=response_data,
                 csv_data=csv_data,
                 error="",
                 visualization=None,  # No visualization in chat
+                audio_response=audio_response_data,
+                detected_language=detected_language,
                 metadata=metadata,
                 chat_history=chat_history
             )

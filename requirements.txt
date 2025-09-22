@@ -4,8 +4,6 @@ aiosignal==1.4.0
 altair==5.5.0
 annotated-types==0.7.0
 anyio==4.10.0
-motor
-pymongo
 attrs==25.3.0
 blinker==1.9.0
 cachetools==5.5.2
@@ -14,6 +12,7 @@ charset-normalizer==3.4.3
 click==8.3.0
 dataclasses-json==0.6.7
 distro==1.9.0
+dnspython==2.8.0
 et_xmlfile==2.0.0
 fastapi==0.117.1
 filetype==1.2.0
@@ -50,6 +49,7 @@ langchain-text-splitters==0.3.11
 langsmith==0.4.29
 MarkupSafe==3.0.2
 marshmallow==3.26.1
+motor==3.7.1
 multidict==6.6.4
 mypy_extensions==1.1.0
 narwhals==2.5.0
@@ -72,6 +72,7 @@ pydantic==2.11.9
 pydantic-settings==2.10.1
 pydantic_core==2.33.2
 pydeck==0.9.1
+pymongo==4.15.1
 pyparsing==3.2.4
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1

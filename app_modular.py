@@ -15,6 +15,7 @@ from langchain_openai import ChatOpenAI
 # Import modules
 from database_manager import DatabaseManager
 from query_processor import QueryProcessor
+from speech_service import SpeechLanguageService
 from models import (
     QueryRequest, ChatRequest, QueryResponse, ChatResponse,
     SessionResponse, SessionsListResponse, ChatHistoryResponse,
@@ -33,6 +34,7 @@ logger = logging.getLogger(__name__)
 db_manager = None
 query_processor = None
 llm = None
+speech_service = None
 route_handlers = None
 
 
@@ -40,7 +42,7 @@ route_handlers = None
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     # Startup
-    global db_manager, query_processor, llm, route_handlers
+    global db_manager, query_processor, llm, speech_service, route_handlers
     
     logger.info("Initializing INGRES ChatBot components...")
     
@@ -63,8 +65,15 @@ async def lifespan(app: FastAPI):
             logger.warning("OPENAI_API_KEY not found, LLM explanations will be disabled")
             llm = None
         
+        # Initialize speech service
+        speech_service = SpeechLanguageService()
+        if speech_service.is_available():
+            logger.info("Speech service initialized successfully")
+        else:
+            logger.warning("Speech service not available - voice functionality will be disabled")
+        
         # Initialize route handlers
-        route_handlers = Routes(db_manager, query_processor, llm)
+        route_handlers = Routes(db_manager, query_processor, llm, speech_service)
         
         logger.info("INGRES ChatBot initialized successfully")
         
@@ -156,6 +165,12 @@ async def execute_sql_directly(sql_query: str):
 async def serve_frontend():
     """Serve the frontend HTML file"""
     return FileResponse("frontend.html")
+
+
+@app.get("/voice-frontend", response_class=FileResponse)
+async def serve_voice_frontend():
+    """Serve the voice-enabled frontend HTML file"""
+    return FileResponse("frontend_voice.html")
 
 
 if __name__ == "__main__":
