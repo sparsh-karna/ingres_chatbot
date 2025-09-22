@@ -165,9 +165,13 @@ class Routes:
                 question_text = request.question
                 detected_language = None
                 
-                # Detect language if speech service is available
-                if self.speech_service and self.speech_service.is_available():
+                # Always try to detect language, even with fallback method
+                if self.speech_service:
                     detected_language = self.speech_service.detect_language_from_text(question_text)
+                    logger.info(f"Detected language for text '{question_text[:50]}...': {detected_language}")
+                else:
+                    logger.info("Speech service not initialized, cannot detect language")
+                    detected_language = None
                 
                 logger.info(f"Processing text chat query: {question_text}")
             
@@ -213,6 +217,9 @@ class Routes:
             audio_response_data = None
             
             if self.speech_service and self.speech_service.is_available() and detected_language:
+                logger.info(f"Processing multilingual output: detected_language={detected_language}, input_type={request.input_type}")
+                logger.info(f"Will translate: {detected_language != 'en-IN'}")
+                
                 multilingual_output = self.speech_service.process_multilingual_chat_output(
                     response_text=base_response,
                     target_language=detected_language,
@@ -220,13 +227,18 @@ class Routes:
                     translate_to_english=(detected_language != "en-IN")
                 )
                 
+                logger.info(f"Multilingual processing result: {multilingual_output}")
+                
                 if not multilingual_output.get("error"):
                     translated_response = multilingual_output.get("translated_response", base_response)
+                    logger.info(f"Translated response: {translated_response[:100]}...")
                     if multilingual_output.get("audio_response"):
                         # Encode audio response as base64
                         audio_response_data = base64.b64encode(multilingual_output["audio_response"]).decode('utf-8')
                 else:
                     logger.warning(f"Multilingual processing failed: {multilingual_output['error']}")
+            else:
+                logger.info(f"Multilingual processing skipped: speech_service_available={self.speech_service and self.speech_service.is_available()}, detected_language={detected_language}")
             
             # Add messages to session
             add_enhanced_message_to_session(

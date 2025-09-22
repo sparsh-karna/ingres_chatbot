@@ -24,15 +24,20 @@ class SpeechLanguageService:
     def __init__(self):
         """Initialize the speech and language service"""
         self.api_key = os.getenv("SARVAM_API_KEY", "")
+        logger.info(f"Loading SARVAM_API_KEY: {'Found' if self.api_key else 'Not found'}")
+        
         if not self.api_key:
             logger.warning("SARVAM_API_KEY not found. Speech functionality will be disabled.")
             self.client = None
         else:
             try:
+                logger.info(f"Attempting to initialize Sarvam AI client with API key: {self.api_key[:10]}...")
                 self.client = SarvamAI(api_subscription_key=self.api_key)
                 logger.info("Sarvam AI client initialized successfully")
             except Exception as e:
                 logger.error(f"Failed to initialize Sarvam AI client: {e}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
                 self.client = None
     
     def is_available(self) -> bool:
@@ -42,7 +47,8 @@ class SpeechLanguageService:
     def detect_language_from_text(self, text: str) -> Optional[str]:
         """Detect language from text input"""
         if not self.client:
-            return None
+            # Fallback: simple language detection based on script
+            return self._simple_language_detection(text)
         
         try:
             response = self.client.text.identify_language(input=text)
@@ -50,8 +56,60 @@ class SpeechLanguageService:
             logger.info(f"Detected language: {language_code} for text: {text[:50]}...")
             return language_code
         except Exception as e:
-            logger.error(f"Error detecting language: {e}")
-            return None
+            logger.error(f"Error detecting language with Sarvam AI: {e}")
+            # Fallback to simple detection
+            return self._simple_language_detection(text)
+    
+    def _simple_language_detection(self, text: str) -> Optional[str]:
+        """Simple language detection based on character patterns"""
+        try:
+            # Check for Devanagari script (Hindi)
+            if any('\u0900' <= char <= '\u097F' for char in text):
+                logger.info(f"Detected Hindi script in text: {text[:50]}...")
+                return "hi-IN"
+            
+            # Check for Gujarati script
+            if any('\u0A80' <= char <= '\u0AFF' for char in text):
+                logger.info(f"Detected Gujarati script in text: {text[:50]}...")
+                return "gu-IN"
+            
+            # Check for Bengali script
+            if any('\u0980' <= char <= '\u09FF' for char in text):
+                logger.info(f"Detected Bengali script in text: {text[:50]}...")
+                return "bn-IN"
+            
+            # Check for Tamil script
+            if any('\u0B80' <= char <= '\u0BFF' for char in text):
+                logger.info(f"Detected Tamil script in text: {text[:50]}...")
+                return "ta-IN"
+            
+            # Check for Telugu script
+            if any('\u0C00' <= char <= '\u0C7F' for char in text):
+                logger.info(f"Detected Telugu script in text: {text[:50]}...")
+                return "te-IN"
+            
+            # Check for Kannada script
+            if any('\u0C80' <= char <= '\u0CFF' for char in text):
+                logger.info(f"Detected Kannada script in text: {text[:50]}...")
+                return "kn-IN"
+            
+            # Check for Malayalam script
+            if any('\u0D00' <= char <= '\u0D7F' for char in text):
+                logger.info(f"Detected Malayalam script in text: {text[:50]}...")
+                return "ml-IN"
+            
+            # Check for Punjabi script
+            if any('\u0A00' <= char <= '\u0A7F' for char in text):
+                logger.info(f"Detected Punjabi script in text: {text[:50]}...")
+                return "pa-IN"
+            
+            # Default to English if no Indian script detected
+            logger.info(f"No Indian script detected, defaulting to English for text: {text[:50]}...")
+            return "en-IN"
+            
+        except Exception as e:
+            logger.error(f"Error in simple language detection: {e}")
+            return "en-IN"
     
     def speech_to_text(self, audio_file: Union[str, bytes, BytesIO]) -> Dict[str, Optional[str]]:
         """Convert speech to text and detect language"""
@@ -137,7 +195,9 @@ class SpeechLanguageService:
     def translate_text(self, text: str, source_language: str, target_language: str = "en-IN") -> Dict[str, Optional[str]]:
         """Translate text from source language to target language"""
         if not self.client:
-            return {"translated_text": None, "error": "Speech service not available"}
+            logger.warning(f"Sarvam AI client not available. Cannot translate from {source_language} to {target_language}")
+            # Return the original text if translation service is not available
+            return {"translated_text": text, "error": "Translation service not available - returning original text"}
         
         try:
             response = self.client.text.translate(
@@ -244,7 +304,7 @@ class SpeechLanguageService:
             return {"error": "Invalid input type. Must be 'text' or 'voice'"}
     
     def process_multilingual_chat_output(self, response_text: str, target_language: str, 
-                                       input_type: str, translate_to_english: bool = True) -> Dict:
+                                   input_type: str, translate_to_english: bool = True) -> Dict:
         """
         Process chat output for multilingual response
         Returns appropriate response format based on input type and language
@@ -258,8 +318,9 @@ class SpeechLanguageService:
                 "error": None
             }
             
-            # If input was in a non-English language and we need translation
-            if translate_to_english and target_language and target_language != "en-IN":
+            # If we have a target language different from English, translate the response
+            if target_language and target_language != "en-IN":
+                logger.info(f"Translating response from en-IN to {target_language}")
                 # Translate response to target language
                 translation_result = self.translate_text(
                     text=response_text,
@@ -267,12 +328,16 @@ class SpeechLanguageService:
                     target_language=target_language
                 )
                 
+                logger.info(f"Translation result: {translation_result}")
+                
                 if translation_result["error"]:
                     logger.warning(f"Translation failed: {translation_result['error']}")
                     result["translated_response"] = response_text  # Fallback to original
                 else:
                     result["translated_response"] = translation_result["translated_text"]
+                    logger.info(f"Successfully translated to: {result['translated_response'][:100]}...")
             else:
+                logger.info(f"No translation needed: target_language={target_language}")
                 result["translated_response"] = response_text
             
             # If input was voice, generate audio response
