@@ -17,7 +17,8 @@ import json
 import logging
 import os
 import uuid
-from collections import defaultdict, deque
+from collections import defaultdict
+import uuid
 from sqlalchemy import text
 from database_manager import DatabaseManager
 from query_processor import QueryProcessor
@@ -46,35 +47,57 @@ def convert_numpy_types(obj):
         return obj
 
 def get_or_create_session_id(provided_session_id: Optional[str]) -> str:
-    """Get existing session ID or create a new one"""
-    if provided_session_id and provided_session_id in chat_sessions:
-        return provided_session_id
-    return str(uuid.uuid4())
+    """Get existing session ID or create a new one using MongoDB"""
+    if provided_session_id and db_manager and db_manager.is_mongodb_available():
+        # Check if session exists in MongoDB
+        sessions = db_manager.get_all_chat_sessions(limit=1)
+        session_ids = [s['session_id'] for s in sessions if s['session_id'] == provided_session_id]
+        if session_ids:
+            return provided_session_id
+    
+    # Create new session
+    new_session_id = str(uuid.uuid4())
+    if db_manager and db_manager.is_mongodb_available():
+        db_manager.create_chat_session(new_session_id)
+    return new_session_id
 
-def add_message_to_session(session_id: str, role: str, content: str):
-    """Add a message to the chat session history"""
-    message = ChatMessage(
-        role=role,
-        content=content,
-        timestamp=datetime.now()
-    )
-    chat_sessions[session_id].append(message)
+def add_message_to_session(session_id: str, role: str, content: str, 
+                          sql_query: str = None, csv_data: str = None):
+    """Add a message to the chat session history using MongoDB"""
+    if db_manager and db_manager.is_mongodb_available():
+        db_manager.add_chat_message(
+            session_id=session_id,
+            role=role,
+            content=content,
+            sql_query=sql_query,
+            csv_data=csv_data
+        )
+    else:
+        logger.warning(f"MongoDB not available, message not stored: {session_id}")
 
 def get_chat_context(session_id: str) -> str:
     """Get formatted chat context for LLM"""
-    if session_id not in chat_sessions or not chat_sessions[session_id]:
+    if not db_manager or not db_manager.is_mongodb_available():
+        return ""
+    
+    messages = db_manager.get_recent_context(session_id, max_messages=6)
+    if not messages:
         return ""
     
     context = "Previous conversation context:\n"
-    for message in chat_sessions[session_id]:
-        context += f"{message.role.title()}: {message.content}\n"
+    for message in messages:
+        context += f"{message['role'].title()}: {message['content']}\n"
     context += "\n"
     return context
 
 def get_structured_chat_context(session_id: str) -> Dict:
     """Get structured chat context instead of plain text"""
-    if session_id not in chat_sessions or not chat_sessions[session_id]:
-        return {}
+    if not db_manager or not db_manager.is_mongodb_available():
+        return {"previous_questions": [], "previous_responses": [], "conversation_flow": []}
+    
+    messages = db_manager.get_recent_context(session_id, max_messages=6)
+    if not messages:
+        return {"previous_questions": [], "previous_responses": [], "conversation_flow": []}
     
     context = {
         "previous_questions": [],
@@ -82,16 +105,16 @@ def get_structured_chat_context(session_id: str) -> Dict:
         "conversation_flow": []
     }
     
-    for message in chat_sessions[session_id]:
-        if message.role == "user":
-            context["previous_questions"].append(message.content)
-        elif message.role == "assistant":
-            context["previous_responses"].append(message.content)
+    for message in messages:
+        if message["role"] == "user":
+            context["previous_questions"].append(message["content"])
+        elif message["role"] == "assistant":
+            context["previous_responses"].append(message["content"])
         
         context["conversation_flow"].append({
-            "role": message.role,
-            "content": message.content[:200] + "..." if len(message.content) > 200 else message.content,
-            "timestamp": message.timestamp
+            "role": message["role"],
+            "content": message["content"][:200] + "..." if len(message["content"]) > 200 else message["content"],
+            "timestamp": message["timestamp"]
         })
     
     return context
@@ -298,11 +321,12 @@ def add_enhanced_message_to_session(
     sql_query: Optional[str] = None,
     data: Optional[pd.DataFrame] = None
 ):
-    """Add an enhanced message with query context to the chat session"""
+    """Add an enhanced message with query context to the chat session using MongoDB"""
     
     # Prepare data summary and limited raw data
     data_summary = None
     raw_data = None
+    csv_data = None
     
     if data is not None and not data.empty:
         data_summary = {
@@ -328,22 +352,46 @@ def add_enhanced_message_to_session(
             sample_data = data.head(3).to_dict(orient='records')
             # Convert numpy types for JSON serialization
             raw_data = convert_numpy_types(sample_data)
+            
+        # Convert to CSV for storage
+        csv_data = data.to_csv(index=False)
     
-    message = EnhancedChatMessage(
-        role=role,
-        content=content,
-        timestamp=datetime.now(),
-        sql_query=sql_query,
-        data_summary=data_summary,
-        raw_data=raw_data
-    )
+    # Store in MongoDB with enhanced metadata
+    metadata = {
+        "data_summary": data_summary,
+        "raw_data": raw_data
+    }
     
-    chat_sessions[session_id].append(message)
+    if db_manager and db_manager.is_mongodb_available():
+        db_manager.add_chat_message(
+            session_id=session_id,
+            role=role,
+            content=content,
+            metadata=metadata,
+            sql_query=sql_query,
+            csv_data=csv_data
+        )
+    else:
+        logger.warning(f"MongoDB not available, enhanced message not stored: {session_id}")
 
 def get_enhanced_chat_context(session_id: str) -> Dict:
-    """Get enhanced chat context with access to previous query results"""
-    if session_id not in chat_sessions or not chat_sessions[session_id]:
-        return {}
+    """Get enhanced chat context with access to previous query results using MongoDB"""
+    if not db_manager or not db_manager.is_mongodb_available():
+        return {
+            "conversation_history": [],
+            "previous_queries": [],
+            "available_data": {},
+            "mentioned_entities": []
+        }
+    
+    messages = db_manager.get_chat_history(session_id, limit=20, include_sql=True)
+    if not messages:
+        return {
+            "conversation_history": [],
+            "previous_queries": [],
+            "available_data": {},
+            "mentioned_entities": []
+        }
     
     context = {
         "conversation_history": [],
@@ -352,34 +400,35 @@ def get_enhanced_chat_context(session_id: str) -> Dict:
         "mentioned_entities": set()
     }
     
-    for message in chat_sessions[session_id]:
+    for message in messages:
         # Add to conversation history
         context["conversation_history"].append({
-            "role": message.role,
-            "content": message.content,
-            "timestamp": message.timestamp
+            "role": message["role"],
+            "content": message["content"],
+            "timestamp": message["timestamp"]
         })
         
         # If this is an assistant message with query results
-        if message.role == "assistant" and message.sql_query:
+        if message["role"] == "assistant" and message.get("sql_query"):
             query_info = {
-                "sql_query": message.sql_query,
-                "data_summary": message.data_summary,
-                "sample_data": message.raw_data
+                "sql_query": message["sql_query"],
+                "data_summary": message.get("metadata", {}).get("data_summary"),
+                "sample_data": message.get("metadata", {}).get("raw_data")
             }
             context["previous_queries"].append(query_info)
             
             # Extract mentioned entities from data
-            if message.data_summary:
-                for col, values in message.data_summary.get("sample_values", {}).items():
+            data_summary = message.get("metadata", {}).get("data_summary")
+            if data_summary:
+                for col, values in data_summary.get("sample_values", {}).items():
                     if col.lower() in ['state', 'district'] and isinstance(values, list):
                         context["mentioned_entities"].update(values)
                     
                 # Store data structure for reference
                 context["available_data"][len(context["previous_queries"])-1] = {
-                    "columns": message.data_summary.get("columns", []),
-                    "row_count": message.data_summary.get("rows_count", 0),
-                    "sample_data": message.raw_data
+                    "columns": data_summary.get("columns", []),
+                    "row_count": data_summary.get("rows_count", 0),
+                    "sample_data": message.get("metadata", {}).get("raw_data")
                 }
     
     # Convert set to list for JSON serialization
@@ -472,8 +521,8 @@ app.add_middleware(
 db_manager: Optional[DatabaseManager] = None
 query_processor: Optional[QueryProcessor] = None
 
-# Chat session storage (in production, use Redis or database)
-chat_sessions = defaultdict(lambda: deque(maxlen=6))  # Store last 3 conversations per session
+# MongoDB-based chat session storage (replacing in-memory storage)
+# chat_sessions = defaultdict(lambda: deque(maxlen=6))  # Store last 3 conversations per session
 
 # Pydantic models for request/response validation
 class QueryRequest(BaseModel):
@@ -699,14 +748,16 @@ async def chat_with_enhanced_context(request: ChatRequest):
             data=result['data']
         )
         
-        # Get updated chat history (convert to original format for response)
+        # Get updated chat history from MongoDB
         chat_history = []
-        for msg in chat_sessions[session_id]:
-            chat_history.append(ChatMessage(
-                role=msg.role,
-                content=msg.content,
-                timestamp=msg.timestamp
-            ))
+        if db_manager and db_manager.is_mongodb_available():
+            messages = db_manager.get_chat_history(session_id, limit=10)
+            for msg in messages:
+                chat_history.append(ChatMessage(
+                    role=msg["role"],
+                    content=msg["content"],
+                    timestamp=datetime.fromisoformat(msg["timestamp"]) if isinstance(msg["timestamp"], str) else msg["timestamp"]
+                ))
         
         # Enhanced metadata
         metadata = {
@@ -914,8 +965,11 @@ async def execute_sql(sql_query: str = Query(..., description="SQL query to exec
 @app.post("/chat/new-session")
 async def create_new_chat_session():
     """Create a new chat session"""
+    if not db_manager or not db_manager.is_mongodb_available():
+        raise HTTPException(status_code=500, detail="MongoDB not available")
+    
     session_id = str(uuid.uuid4())
-    chat_sessions[session_id] = deque(maxlen=3)
+    db_manager.create_chat_session(session_id)
     return {
         "success": True,
         "session_id": session_id,
@@ -925,10 +979,13 @@ async def create_new_chat_session():
 @app.get("/chat/session/{session_id}")
 async def get_chat_session(session_id: str):
     """Get chat session history"""
-    if session_id not in chat_sessions:
+    if not db_manager or not db_manager.is_mongodb_available():
+        raise HTTPException(status_code=500, detail="MongoDB not available")
+    
+    history = db_manager.get_chat_history(session_id, limit=50)
+    if not history:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    history = list(chat_sessions[session_id])
     return {
         "success": True,
         "session_id": session_id,
@@ -938,35 +995,32 @@ async def get_chat_session(session_id: str):
 
 @app.delete("/chat/session/{session_id}")
 async def clear_chat_session(session_id: str):
-    """Clear chat session history"""
-    if session_id not in chat_sessions:
+    """Delete chat session"""
+    if not db_manager or not db_manager.is_mongodb_available():
+        raise HTTPException(status_code=500, detail="MongoDB not available")
+    
+    success = db_manager.delete_chat_session(session_id)
+    if not success:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    chat_sessions[session_id].clear()
     return {
         "success": True,
         "session_id": session_id,
-        "message": "Chat session cleared"
+        "message": "Chat session deleted"
     }
 
 @app.get("/chat/sessions")
 async def list_active_sessions():
     """List all active chat sessions"""
-    active_sessions = []
-    for session_id, messages in chat_sessions.items():
-        if messages:  # Only include sessions with messages
-            last_message = messages[-1]
-            active_sessions.append({
-                "session_id": session_id,
-                "message_count": len(messages),
-                "last_activity": last_message.timestamp,
-                "last_message_preview": last_message.content[:100] + "..." if len(last_message.content) > 100 else last_message.content
-            })
+    if not db_manager or not db_manager.is_mongodb_available():
+        raise HTTPException(status_code=500, detail="MongoDB not available")
+    
+    sessions = db_manager.get_all_chat_sessions(limit=100, active_only=True)
     
     return {
         "success": True,
-        "active_sessions": active_sessions,
-        "total_sessions": len(active_sessions)
+        "active_sessions": sessions,
+        "total_sessions": len(sessions)
     }
 
 # Root endpoint

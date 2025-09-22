@@ -1,6 +1,7 @@
 """
 Database setup and data loading module for INGRES ChatBot
 Handles PostgreSQL database connection and CSV data ingestion
+Also manages MongoDB for chat history storage
 """
 
 import os
@@ -10,9 +11,14 @@ import pandas as pd
 from sqlalchemy import create_engine, text, MetaData, Table, Column, String, Float, Integer
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
+from datetime import datetime, timezone
 import logging
 from dotenv import load_dotenv
+from pymongo import MongoClient, ASCENDING, DESCENDING
+from pymongo.database import Database
+from pymongo.collection import Collection
+import uuid
 
 # Load environment variables
 load_dotenv()
@@ -24,13 +30,23 @@ logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 class DatabaseManager:
-    """Manages database connections and operations"""
+    """Manages database connections and operations for both PostgreSQL and MongoDB"""
     
     def __init__(self):
+        # PostgreSQL attributes
         self.engine = None
         self.session = None
         self.metadata = None
+        
+        # MongoDB attributes
+        self.mongo_client = None
+        self.mongo_db = None
+        self.chat_sessions_collection = None
+        self.chat_messages_collection = None
+        
+        # Initialize connections
         self._initialize_connection()
+        self._initialize_mongodb()
     
     def _initialize_connection(self):
         """Initialize database connection"""
@@ -58,8 +74,80 @@ class DatabaseManager:
             logger.info("Database connection established successfully")
             
         except Exception as e:
-            logger.error(f"Failed to connect to database: {e}")
+            logger.error(f"Failed to connect to PostgreSQL database: {e}")
             raise
+    
+    def _initialize_mongodb(self):
+        """Initialize MongoDB connection and setup collections"""
+        try:
+            # Get MongoDB configuration from environment variables
+            # Primary method: use MONGODB_URI (for Atlas/Cloud connections)
+            mongodb_uri = os.getenv('MONGODB_URI')
+            mongo_db_name = os.getenv('MONGODB_DATABASE_NAME', 'ingres_chatbot')
+            
+            if mongodb_uri:
+                # Use provided URI (Atlas/Cloud connection)
+                mongodb_url = mongodb_uri
+            else:
+                # Fallback: use individual components for local MongoDB
+                mongo_host = os.getenv('MONGO_HOST', 'localhost')
+                mongo_port = int(os.getenv('MONGO_PORT', '27017'))
+                mongo_user = os.getenv('MONGO_USER', '')
+                mongo_password = os.getenv('MONGO_PASSWORD', '')
+                
+                # Create MongoDB connection string
+                if mongo_user and mongo_password:
+                    mongodb_url = f"mongodb://{mongo_user}:{mongo_password}@{mongo_host}:{mongo_port}/"
+                else:
+                    mongodb_url = f"mongodb://{mongo_host}:{mongo_port}/"
+            
+            # Connect to MongoDB
+            self.mongo_client = MongoClient(mongodb_url)
+            
+            # Test the connection
+            self.mongo_client.admin.command('ping')
+            logger.info("MongoDB connection established successfully")
+            
+            # Get or create database
+            self.mongo_db = self.mongo_client[mongo_db_name]
+            logger.info(f"Connected to MongoDB database: {mongo_db_name}")
+            
+            # Setup collections
+            self._setup_chat_collections()
+            
+        except Exception as e:
+            logger.error(f"Failed to connect to MongoDB: {e}")
+            logger.warning("MongoDB functionality will be disabled. Chat history will be stored in memory only.")
+            self.mongo_client = None
+            self.mongo_db = None
+    
+    def _setup_chat_collections(self):
+        """Setup MongoDB collections for chat functionality"""
+        if self.mongo_db is None:
+            return
+        
+        try:
+            # Chat Sessions collection
+            self.chat_sessions_collection = self.mongo_db['chat_sessions']
+            
+            # Chat Messages collection  
+            self.chat_messages_collection = self.mongo_db['chat_messages']
+            
+            # Create indexes for better performance
+            self.chat_sessions_collection.create_index([("session_id", ASCENDING)], unique=True)
+            self.chat_sessions_collection.create_index([("created_at", DESCENDING)])
+            self.chat_sessions_collection.create_index([("last_activity", DESCENDING)])
+            
+            self.chat_messages_collection.create_index([("session_id", ASCENDING)])
+            self.chat_messages_collection.create_index([("timestamp", DESCENDING)])
+            self.chat_messages_collection.create_index([("session_id", ASCENDING), ("timestamp", DESCENDING)])
+            
+            logger.info("MongoDB chat collections setup completed")
+            
+        except Exception as e:
+            logger.error(f"Error setting up MongoDB collections: {e}")
+            self.chat_sessions_collection = None
+            self.chat_messages_collection = None
     
     def create_database_if_not_exists(self):
         """Create database if it doesn't exist"""
@@ -105,6 +193,10 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error getting table schema for {table_name}: {e}")
             return {}
+        
+    def is_mongodb_available(self) -> bool:
+        """Check if MongoDB is available"""
+        return self.mongo_client is not None and self.mongo_db is not None
     
     def execute_query(self, query: str) -> pd.DataFrame:
         """Execute SQL query and return results as DataFrame"""
@@ -140,12 +232,278 @@ class DatabaseManager:
             traceback.print_exc()
             return pd.DataFrame()
     
+    # ============ MongoDB Chat Management Methods ============
+    
+    def create_chat_session(self, session_id: str = None, metadata: Dict = None) -> str:
+        """Create a new chat session in MongoDB"""
+        if self.chat_sessions_collection is None:
+            logger.warning("MongoDB not available, cannot create chat session")
+            return session_id or str(uuid.uuid4())
+        
+        try:
+            if not session_id:
+                session_id = str(uuid.uuid4())
+            
+            session_doc = {
+                "session_id": session_id,
+                "created_at": datetime.now(timezone.utc),
+                "last_activity": datetime.now(timezone.utc),
+                "message_count": 0,
+                "metadata": metadata or {},
+                "is_active": True
+            }
+            
+            # Insert or update session
+            self.chat_sessions_collection.replace_one(
+                {"session_id": session_id}, 
+                session_doc, 
+                upsert=True
+            )
+            
+            logger.info(f"Created chat session: {session_id}")
+            return session_id
+            
+        except Exception as e:
+            logger.error(f"Error creating chat session: {e}")
+            return session_id or str(uuid.uuid4())
+    
+    def add_chat_message(self, session_id: str, role: str, content: str, 
+                        metadata: Dict = None, sql_query: str = None, 
+                        csv_data: str = None) -> bool:
+        """Add a message to chat session in MongoDB"""
+        if self.chat_messages_collection is None:
+            logger.warning("MongoDB not available, cannot store chat message")
+            return False
+        
+        try:
+            message_doc = {
+                "session_id": session_id,
+                "role": role,
+                "content": content,
+                "timestamp": datetime.now(timezone.utc),
+                "metadata": metadata or {},
+                "sql_query": sql_query,
+                "csv_data": csv_data
+            }
+            
+            # Insert message
+            result = self.chat_messages_collection.insert_one(message_doc)
+            
+            # Update session last activity and message count
+            if self.chat_sessions_collection is not None:
+                self.chat_sessions_collection.update_one(
+                    {"session_id": session_id},
+                    {
+                        "$set": {"last_activity": datetime.now(timezone.utc)},
+                        "$inc": {"message_count": 1}
+                    }
+                )
+            
+            logger.info(f"Added chat message to session {session_id}")
+            return bool(result.inserted_id)
+            
+        except Exception as e:
+            logger.error(f"Error adding chat message: {e}")
+            return False
+    
+    def get_chat_history(self, session_id: str, limit: int = 50, 
+                        include_sql: bool = False) -> List[Dict]:
+        """Get chat history for a session from MongoDB"""
+        if self.chat_messages_collection is None:
+            logger.warning("MongoDB not available, cannot retrieve chat history")
+            return []
+        
+        try:
+            # Build projection
+            projection = {
+                "role": 1,
+                "content": 1,
+                "timestamp": 1,
+                "metadata": 1,
+                "_id": 0
+            }
+            
+            if include_sql:
+                projection["sql_query"] = 1
+                projection["csv_data"] = 1
+            
+            # Get messages for session
+            cursor = self.chat_messages_collection.find(
+                {"session_id": session_id},
+                projection
+            ).sort("timestamp", ASCENDING).limit(limit)
+            
+            messages = list(cursor)
+            
+            # Convert datetime objects to ISO strings
+            for message in messages:
+                if isinstance(message.get('timestamp'), datetime):
+                    message['timestamp'] = message['timestamp'].isoformat()
+            
+            logger.info(f"Retrieved {len(messages)} messages for session {session_id}")
+            return messages
+            
+        except Exception as e:
+            logger.error(f"Error retrieving chat history: {e}")
+            return []
+    
+    def get_recent_context(self, session_id: str, max_messages: int = 6) -> List[Dict]:
+        """Get recent messages for context (last 3 exchanges = 6 messages)"""
+        if self.chat_messages_collection is None:
+            return []
+        
+        try:
+            cursor = self.chat_messages_collection.find(
+                {"session_id": session_id},
+                {
+                    "role": 1,
+                    "content": 1,
+                    "timestamp": 1,
+                    "sql_query": 1,
+                    "_id": 0
+                }
+            ).sort("timestamp", DESCENDING).limit(max_messages)
+            
+            messages = list(cursor)
+            messages.reverse()  # Return in chronological order
+            
+            # Convert datetime objects to ISO strings
+            for message in messages:
+                if isinstance(message.get('timestamp'), datetime):
+                    message['timestamp'] = message['timestamp'].isoformat()
+            
+            return messages
+            
+        except Exception as e:
+            logger.error(f"Error retrieving recent context: {e}")
+            return []
+    
+    def get_all_chat_sessions(self, limit: int = 100, active_only: bool = True) -> List[Dict]:
+        """Get all chat sessions from MongoDB"""
+        if self.chat_sessions_collection is None:
+            logger.warning("MongoDB not available, cannot retrieve chat sessions")
+            return []
+        
+        try:
+            query = {}
+            if active_only:
+                query["is_active"] = True
+            
+            cursor = self.chat_sessions_collection.find(
+                query,
+                {
+                    "session_id": 1,
+                    "created_at": 1,
+                    "last_activity": 1,
+                    "message_count": 1,
+                    "metadata": 1,
+                    "_id": 0
+                }
+            ).sort("last_activity", DESCENDING).limit(limit)
+            
+            sessions = list(cursor)
+            
+            # Convert datetime objects to ISO strings
+            for session in sessions:
+                for field in ['created_at', 'last_activity']:
+                    if isinstance(session.get(field), datetime):
+                        session[field] = session[field].isoformat()
+            
+            logger.info(f"Retrieved {len(sessions)} chat sessions")
+            return sessions
+            
+        except Exception as e:
+            logger.error(f"Error retrieving chat sessions: {e}")
+            return []
+    
+    def delete_chat_session(self, session_id: str) -> bool:
+        """Delete a chat session and all its messages"""
+        if self.chat_sessions_collection is None or self.chat_messages_collection is None:
+            logger.warning("MongoDB not available, cannot delete chat session")
+            return False
+        
+        try:
+            # Delete messages first
+            message_result = self.chat_messages_collection.delete_many({"session_id": session_id})
+            
+            # Delete session
+            session_result = self.chat_sessions_collection.delete_one({"session_id": session_id})
+            
+            logger.info(f"Deleted chat session {session_id}: {message_result.deleted_count} messages, {session_result.deleted_count} session")
+            return session_result.deleted_count > 0
+            
+        except Exception as e:
+            logger.error(f"Error deleting chat session: {e}")
+            return False
+    
+    def deactivate_chat_session(self, session_id: str) -> bool:
+        """Mark a chat session as inactive instead of deleting it"""
+        if self.chat_sessions_collection is None:
+            logger.warning("MongoDB not available, cannot deactivate chat session")
+            return False
+        
+        try:
+            result = self.chat_sessions_collection.update_one(
+                {"session_id": session_id},
+                {"$set": {"is_active": False, "deactivated_at": datetime.now(timezone.utc)}}
+            )
+            
+            logger.info(f"Deactivated chat session: {session_id}")
+            return result.modified_count > 0
+            
+        except Exception as e:
+            logger.error(f"Error deactivating chat session: {e}")
+            return False
+    
+    def get_session_stats(self, session_id: str) -> Dict:
+        """Get statistics for a chat session"""
+        if self.chat_sessions_collection is None or self.chat_messages_collection is None:
+            return {}
+        
+        try:
+            # Get session info
+            session = self.chat_sessions_collection.find_one({"session_id": session_id})
+            if not session:
+                return {}
+            
+            # Get message statistics
+            message_stats = list(self.chat_messages_collection.aggregate([
+                {"$match": {"session_id": session_id}},
+                {"$group": {
+                    "_id": "$role",
+                    "count": {"$sum": 1}
+                }}
+            ]))
+            
+            stats = {
+                "session_id": session_id,
+                "created_at": session['created_at'].isoformat() if isinstance(session.get('created_at'), datetime) else session.get('created_at'),
+                "last_activity": session['last_activity'].isoformat() if isinstance(session.get('last_activity'), datetime) else session.get('last_activity'),
+                "message_count": session.get('message_count', 0),
+                "is_active": session.get('is_active', False),
+                "message_breakdown": {stat['_id']: stat['count'] for stat in message_stats}
+            }
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Error getting session stats: {e}")
+            return {}
+    
+    def is_mongodb_available(self) -> bool:
+        """Check if MongoDB is available"""
+        return self.mongo_client is not None and self.mongo_db is not None
+    
     def close_connection(self):
         """Close database connection"""
         if self.session:
             self.session.close()
         if self.engine:
             self.engine.dispose()
+        
+        # Also close MongoDB connection
+        if self.mongo_client:
+            self.mongo_client.close()
 
 
 class DataLoader:
@@ -289,6 +647,286 @@ class DataLoader:
         except Exception as e:
             logger.error(f"Error processing CSV file {csv_file}: {e}")
             return False
+    
+    # ============ MongoDB Chat Management Methods ============
+    
+    def create_chat_session(self, session_id: str = None, metadata: Dict = None) -> str:
+        """Create a new chat session in MongoDB"""
+        if self.chat_sessions_collection is None:
+            logger.warning("MongoDB not available, cannot create chat session")
+            return session_id or str(uuid.uuid4())
+        
+        try:
+            if not session_id:
+                session_id = str(uuid.uuid4())
+            
+            session_doc = {
+                "session_id": session_id,
+                "created_at": datetime.now(timezone.utc),
+                "last_activity": datetime.now(timezone.utc),
+                "message_count": 0,
+                "metadata": metadata or {},
+                "is_active": True
+            }
+            
+            # Insert or update session
+            self.chat_sessions_collection.replace_one(
+                {"session_id": session_id}, 
+                session_doc, 
+                upsert=True
+            )
+            
+            logger.info(f"Created chat session: {session_id}")
+            return session_id
+            
+        except Exception as e:
+            logger.error(f"Error creating chat session: {e}")
+            return session_id or str(uuid.uuid4())
+    
+    def add_chat_message(self, session_id: str, role: str, content: str, 
+                        metadata: Dict = None, sql_query: str = None, 
+                        csv_data: str = None) -> bool:
+        """Add a message to chat session in MongoDB"""
+        if self.chat_messages_collection is None:
+            logger.warning("MongoDB not available, cannot store chat message")
+            return False
+        
+        try:
+            message_doc = {
+                "session_id": session_id,
+                "role": role,
+                "content": content,
+                "timestamp": datetime.now(timezone.utc),
+                "metadata": metadata or {},
+                "sql_query": sql_query,
+                "csv_data": csv_data
+            }
+            
+            # Insert message
+            result = self.chat_messages_collection.insert_one(message_doc)
+            
+            # Update session last activity and message count
+            if self.chat_sessions_collection is not None:
+                self.chat_sessions_collection.update_one(
+                    {"session_id": session_id},
+                    {
+                        "$set": {"last_activity": datetime.now(timezone.utc)},
+                        "$inc": {"message_count": 1}
+                    }
+                )
+            
+            logger.info(f"Added chat message to session {session_id}")
+            return bool(result.inserted_id)
+            
+        except Exception as e:
+            logger.error(f"Error adding chat message: {e}")
+            return False
+    
+    def get_chat_history(self, session_id: str, limit: int = 50, 
+                        include_sql: bool = False) -> List[Dict]:
+        """Get chat history for a session from MongoDB"""
+        if self.chat_messages_collection is None:
+            logger.warning("MongoDB not available, cannot retrieve chat history")
+            return []
+        
+        try:
+            # Build projection
+            projection = {
+                "role": 1,
+                "content": 1,
+                "timestamp": 1,
+                "metadata": 1,
+                "_id": 0
+            }
+            
+            if include_sql:
+                projection["sql_query"] = 1
+                projection["csv_data"] = 1
+            
+            # Get messages for session
+            cursor = self.chat_messages_collection.find(
+                {"session_id": session_id},
+                projection
+            ).sort("timestamp", ASCENDING).limit(limit)
+            
+            messages = list(cursor)
+            
+            # Convert datetime objects to ISO strings
+            for message in messages:
+                if isinstance(message.get('timestamp'), datetime):
+                    message['timestamp'] = message['timestamp'].isoformat()
+            
+            logger.info(f"Retrieved {len(messages)} messages for session {session_id}")
+            return messages
+            
+        except Exception as e:
+            logger.error(f"Error retrieving chat history: {e}")
+            return []
+    
+    def get_recent_context(self, session_id: str, max_messages: int = 6) -> List[Dict]:
+        """Get recent messages for context (last 3 exchanges = 6 messages)"""
+        if self.chat_messages_collection is None:
+            return []
+        
+        try:
+            cursor = self.chat_messages_collection.find(
+                {"session_id": session_id},
+                {
+                    "role": 1,
+                    "content": 1,
+                    "timestamp": 1,
+                    "sql_query": 1,
+                    "_id": 0
+                }
+            ).sort("timestamp", DESCENDING).limit(max_messages)
+            
+            messages = list(cursor)
+            messages.reverse()  # Return in chronological order
+            
+            # Convert datetime objects to ISO strings
+            for message in messages:
+                if isinstance(message.get('timestamp'), datetime):
+                    message['timestamp'] = message['timestamp'].isoformat()
+            
+            return messages
+            
+        except Exception as e:
+            logger.error(f"Error retrieving recent context: {e}")
+            return []
+    
+    def get_all_chat_sessions(self, limit: int = 100, active_only: bool = True) -> List[Dict]:
+        """Get all chat sessions from MongoDB"""
+        if self.chat_sessions_collection is None:
+            logger.warning("MongoDB not available, cannot retrieve chat sessions")
+            return []
+        
+        try:
+            query = {}
+            if active_only:
+                query["is_active"] = True
+            
+            cursor = self.chat_sessions_collection.find(
+                query,
+                {
+                    "session_id": 1,
+                    "created_at": 1,
+                    "last_activity": 1,
+                    "message_count": 1,
+                    "metadata": 1,
+                    "_id": 0
+                }
+            ).sort("last_activity", DESCENDING).limit(limit)
+            
+            sessions = list(cursor)
+            
+            # Convert datetime objects to ISO strings
+            for session in sessions:
+                for field in ['created_at', 'last_activity']:
+                    if isinstance(session.get(field), datetime):
+                        session[field] = session[field].isoformat()
+            
+            logger.info(f"Retrieved {len(sessions)} chat sessions")
+            return sessions
+            
+        except Exception as e:
+            logger.error(f"Error retrieving chat sessions: {e}")
+            return []
+    
+    def delete_chat_session(self, session_id: str) -> bool:
+        """Delete a chat session and all its messages"""
+        if self.chat_sessions_collection is None or self.chat_messages_collection is None:
+            logger.warning("MongoDB not available, cannot delete chat session")
+            return False
+        
+        try:
+            # Delete messages first
+            message_result = self.chat_messages_collection.delete_many({"session_id": session_id})
+            
+            # Delete session
+            session_result = self.chat_sessions_collection.delete_one({"session_id": session_id})
+            
+            logger.info(f"Deleted chat session {session_id}: {message_result.deleted_count} messages, {session_result.deleted_count} session")
+            return session_result.deleted_count > 0
+            
+        except Exception as e:
+            logger.error(f"Error deleting chat session: {e}")
+            return False
+    
+    def deactivate_chat_session(self, session_id: str) -> bool:
+        """Mark a chat session as inactive instead of deleting it"""
+        if self.chat_sessions_collection is None:
+            logger.warning("MongoDB not available, cannot deactivate chat session")
+            return False
+        
+        try:
+            result = self.chat_sessions_collection.update_one(
+                {"session_id": session_id},
+                {"$set": {"is_active": False, "deactivated_at": datetime.now(timezone.utc)}}
+            )
+            
+            logger.info(f"Deactivated chat session: {session_id}")
+            return result.modified_count > 0
+            
+        except Exception as e:
+            logger.error(f"Error deactivating chat session: {e}")
+            return False
+    
+    def get_session_stats(self, session_id: str) -> Dict:
+        """Get statistics for a chat session"""
+        if self.chat_sessions_collection is None or self.chat_messages_collection is None:
+            return {}
+        
+        try:
+            # Get session info
+            session = self.chat_sessions_collection.find_one({"session_id": session_id})
+            if not session:
+                return {}
+            
+            # Get message statistics
+            message_stats = list(self.chat_messages_collection.aggregate([
+                {"$match": {"session_id": session_id}},
+                {"$group": {
+                    "_id": "$role",
+                    "count": {"$sum": 1}
+                }}
+            ]))
+            
+            stats = {
+                "session_id": session_id,
+                "created_at": session['created_at'].isoformat() if isinstance(session.get('created_at'), datetime) else session.get('created_at'),
+                "last_activity": session['last_activity'].isoformat() if isinstance(session.get('last_activity'), datetime) else session.get('last_activity'),
+                "message_count": session.get('message_count', 0),
+                "is_active": session.get('is_active', False),
+                "message_breakdown": {stat['_id']: stat['count'] for stat in message_stats}
+            }
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Error getting session stats: {e}")
+            return {}
+    
+    def close_connections(self):
+        """Close both PostgreSQL and MongoDB connections"""
+        try:
+            # Close PostgreSQL
+            if self.session:
+                self.session.close()
+            if self.engine:
+                self.engine.dispose()
+            
+            # Close MongoDB
+            if self.mongo_client:
+                self.mongo_client.close()
+            
+            logger.info("All database connections closed")
+            
+        except Exception as e:
+            logger.error(f"Error closing database connections: {e}")
+    
+    def is_mongodb_available(self) -> bool:
+        """Check if MongoDB is available"""
+        return self.mongo_client is not None and self.mongo_db is not None
     
     def load_all_csv_files(self):
         """Load all CSV files into the database"""
