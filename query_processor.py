@@ -30,6 +30,7 @@ class QueryProcessor:
     def __init__(self, db_manager: DatabaseManager):
         self.db_manager = db_manager
         self.llm = None
+        self._last_sql_query = ""  # Store the last executed SQL query
         self._initialize_llm()
         self.database_schema = self._get_database_schema()
     
@@ -757,6 +758,9 @@ Response:
             if not sql_query:
                 result['error'] = "Failed to generate SQL query from your question"
                 return result
+            
+            # Store the last SQL query for access by other components
+            self._last_sql_query = sql_query
             result['sql_query'] = sql_query
             success, data, message = self.execute_query_safely(sql_query)
             if not success:
