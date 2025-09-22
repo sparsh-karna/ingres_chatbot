@@ -41,7 +41,7 @@ class QueryProcessor:
                 raise ValueError("OPENAI_API_KEY not found in environment variables")
             
             self.llm = ChatOpenAI(
-                model="gpt-3.5-turbo-0125",
+                model="gpt-4o-mini-2024-07-18",
                 openai_api_key=api_key,
                 temperature=0.1
             )
@@ -269,184 +269,48 @@ Domain Knowledge Context:
                     exploration_context += f"Results: {data['results']}\n"
                     exploration_context += f"Explanation: {data['explanation']}\n\n"
             
+            # CRITICAL: Use the improved prompt template with UNION fixes
             sql_prompt = PromptTemplate(
                 input_variables=["schema", "question", "exploration_context", "loop_count", "max_loops"],
                 template="""
-You are an expert SQL query generator and agricultural data analyst for a groundwater resource database.
-{schema}
+    You are an expert SQL query generator and agricultural data analyst for a groundwater resource database.
+    {schema}
 
-{exploration_context}
+    {exploration_context}
 
-User Question: {question}
+    User Question: {question}
 
-Loop Count: {loop_count}/{max_loops}
+    Loop Count: {loop_count}/{max_loops}
 
-CRITICAL INSTRUCTIONS:
-1. If this is your FINAL loop ({loop_count} == {max_loops}), you MUST generate the FINAL SQL query that answers the user's question and MUST set need_exploration to false. Do not explore in the final loop.
-2. If you need to explore data first OR if previous queries had errors and this is NOT the final loop, generate an improved query and set need_exploration to true.
-3. LEARN FROM PREVIOUS QUERY ERRORS: If previous queries failed, understand why and avoid similar mistakes - pay special attention to table alias errors
-4. **BE ANALYTICALLY CREATIVE**: Don't just say "data not available" - extract relevant metrics and create insights!
+    CRITICAL INSTRUCTIONS:
+    1. If this is your FINAL loop ({loop_count} == {max_loops}), you MUST generate the FINAL SQL query that answers the user's question and MUST set need_exploration to false. Do not explore in the final loop.
+    2. If you need to explore data first OR if previous queries had errors and this is NOT the final loop, generate an improved query and set need_exploration to true.
+    3. LEARN FROM PREVIOUS QUERY ERRORS: If previous queries failed, understand why and avoid similar mistakes - pay special attention to table alias errors
+    4. For UNION operations, NEVER use SELECT * - ONLY use columns from the "COMMON COLUMNS" or "RECOMMENDED COLUMN GROUPS" section above
+    5. When combining data from multiple years, use only the columns listed in the schema as common or compatible
+    6. Use appropriate table names and column names from the schema
+    7. Include proper WHERE clauses, JOINs, and aggregations as needed
+    8. For time-based queries, consider which year's data to use
+    9. Ensure the query is PostgreSQL compatible
+    10. Use proper column aliases for better readability
+    11. Limit exploration queries to 20 results, final queries to reasonable numbers
+    12. All state names with two words have spaces like "MADHYA PRADESH" except "TAMILNADU"
+    13. You MUST always return a valid SQL query that can be executed
+    14. Never return empty strings or invalid queries
+    15. In the final loop, use all available information from previous explorations to create the best possible query
+    16. Double-check table aliases in JOINs - ensure columns are referenced from the correct table alias
+    17. While doing union keep in mind that the table groundwater_data_2012_2013 has district as double precision(they are null) whereas in other tables it is text. So you will have to cast it appropriately.
 
-## AGRICULTURAL ANALYSIS MINDSET:
-When users ask agricultural questions (crop selection, farming advice, etc.), you should:
-- **ALWAYS extract relevant water-related metrics** that impact agriculture
-- **CREATE COMPARATIVE ANALYSIS** using available data
-- **DERIVE MEANINGFUL INSIGHTS** from rainfall, groundwater, and extraction patterns
-- **PROVIDE DATA-DRIVEN RECOMMENDATIONS** based on water resource analysis
+    **RESPONSE FORMAT REQUIREMENT:**
+    You MUST respond with a valid JSON object in the following format:
+    {{
+        "sql_query": "YOUR SQL QUERY HERE",
+        "need_exploration": true/false,
+        "explanation": "Brief explanation of what this query does"
+    }}
 
-### Key Agricultural Metrics to Extract:
-1. **Water Availability Indicators:**
-   - Total annual rainfall (Rainfall (mm)_Total)
-   - Annual extractable groundwater (Annual Extractable Ground water Resource (ham)_Total)
-   - Net groundwater availability for future use
-   - Groundwater recharge rates
-
-2. **Water Stress Indicators:**
-   - Stage of groundwater extraction (%)
-   - Current extraction vs available resources ratio
-   - Seasonal water patterns (C, NC, PQ categories)
-
-3. **Agricultural Suitability Factors:**
-   - Water-intensive crops (like rice) need: High rainfall + High groundwater availability + Low extraction stress
-   - Drought-resistant crops (like wheat) need: Moderate water + Good extraction efficiency
-   - Calculate water surplus/deficit ratios
-
-### Example Agricultural Analysis Patterns:
-
-**For crop comparison queries:**
-```sql
-SELECT 
-    CAST(state AS TEXT) as state,
-    CAST(district AS TEXT) as district,
-    CAST("Rainfall (mm)_Total" AS NUMERIC) as total_rainfall,
-    CAST("Annual Extractable Ground water Resource (ham)_Total" AS NUMERIC) as extractable_water,
-    CAST("Stage of Ground Water Extraction (%)_Total" AS NUMERIC) as extraction_stage,
-    CAST("Net Annual Ground Water Availability for Future Use (ham)_Total" AS NUMERIC) as future_water_availability,
-    -- Water availability score for agriculture
-    CASE 
-        WHEN "Rainfall (mm)_Total" > 1000 AND "Stage of Ground Water Extraction (%)_Total" < 70 THEN 'High Water Availability'
-        WHEN "Rainfall (mm)_Total" > 600 AND "Stage of Ground Water Extraction (%)_Total" < 85 THEN 'Moderate Water Availability' 
-        ELSE 'Water Stressed'
-    END as water_suitability,
-    -- Rice suitability (needs high water)
-    CASE 
-        WHEN "Rainfall (mm)_Total" > 1200 AND "Stage of Ground Water Extraction (%)_Total" < 60 THEN 'Highly Suitable for Rice'
-        WHEN "Rainfall (mm)_Total" > 800 AND "Stage of Ground Water Extraction (%)_Total" < 80 THEN 'Moderately Suitable for Rice'
-        ELSE 'Not Suitable for Rice'
-    END as rice_suitability,
-    -- Wheat suitability (needs moderate water)
-    CASE 
-        WHEN "Rainfall (mm)_Total" BETWEEN 400 AND 1000 AND "Stage of Ground Water Extraction (%)_Total" < 85 THEN 'Highly Suitable for Wheat'
-        WHEN "Rainfall (mm)_Total" > 300 AND "Stage of Ground Water Extraction (%)_Total" < 95 THEN 'Moderately Suitable for Wheat'
-        ELSE 'Check Water Management'
-    END as wheat_suitability
-FROM groundwater_data_2024_2025 
-WHERE UPPER(state) LIKE '%TAMIL%' OR UPPER(district) LIKE '%CHENNAI%'
-ORDER BY total_rainfall DESC, extraction_stage ASC;
-```
-
-**For regional water analysis:**
-```sql
-WITH water_metrics AS (
-    SELECT 
-        CAST(district AS TEXT) as district,
-        AVG(CAST("Rainfall (mm)_Total" AS NUMERIC)) as avg_rainfall,
-        AVG(CAST("Annual Extractable Ground water Resource (ham)_Total" AS NUMERIC)) as avg_extractable_water,
-        AVG(CAST("Stage of Ground Water Extraction (%)_Total" AS NUMERIC)) as avg_extraction_stage,
-        AVG(CAST("Ground Water Extraction for all uses (ha.m)_Irrigation_Total" AS NUMERIC)) as irrigation_extraction
-    FROM groundwater_data_2024_2025 
-    WHERE UPPER(state) LIKE '%TAMIL%'
-    GROUP BY district
-)
-SELECT 
-    district,
-    avg_rainfall,
-    avg_extractable_water,
-    avg_extraction_stage,
-    irrigation_extraction,
-    -- Calculate water efficiency ratio
-    ROUND(avg_extractable_water / NULLIF(irrigation_extraction, 0), 2) as water_efficiency_ratio,
-    -- Agricultural recommendation
-    CASE 
-        WHEN avg_rainfall > 1000 AND avg_extraction_stage < 70 THEN 'Suitable for water-intensive crops (Rice preferred)'
-        WHEN avg_rainfall BETWEEN 600 AND 1000 AND avg_extraction_stage < 85 THEN 'Suitable for moderate water crops (Wheat preferred)'
-        WHEN avg_extraction_stage > 90 THEN 'Focus on drought-resistant varieties and water conservation'
-        ELSE 'Mixed cropping with water management recommended'
-    END as agricultural_recommendation
-FROM water_metrics
-ORDER BY avg_rainfall DESC, avg_extraction_stage ASC;
-```
-
-## CORE SQL GENERATION RULES:
-5. For UNION operations, NEVER use SELECT * - ONLY use columns from the "COMMON COLUMNS" or "RECOMMENDED COLUMN GROUPS" section above
-6. When combining data from multiple years, use only the columns listed in the schema as common or compatible
-7. Use appropriate table names and column names from the schema
-8. Include proper WHERE clauses, JOINs, and aggregations as needed
-9. For time-based queries, consider which year's data to use
-10. Ensure the query is PostgreSQL compatible
-11. Use proper column aliases for better readability
-12. Limit exploration queries to 20 results, final queries to reasonable numbers
-13. All state names with two words have spaces like "MADHYA PRADESH" except "TAMILNADU"
-14. You MUST always return a valid SQL query that can be executed
-15. Never return empty strings or invalid queries
-16. In the final loop, use all available information from previous explorations to create the best possible query
-17. Double-check table aliases in JOINs - ensure columns are referenced from the correct table alias
-
-UNION OPERATION RULES (CRITICAL):
-- ONLY use columns that appear in the "COMMON COLUMNS" list above
-- OR use one of the "RECOMMENDED COLUMN GROUPS" for specific analysis types
-- NEVER assume all tables have identical column structures
-- ALWAYS cast ALL columns in UNION operations to ensure type compatibility
-- Cast string columns to TEXT: CAST(column_name AS TEXT)
-- Cast numeric columns to NUMERIC: CAST(column_name AS NUMERIC)
-- MANDATORY casting example: SELECT CAST(state AS TEXT), CAST(district AS TEXT), CAST(rainfall_mm_total AS NUMERIC) FROM table1 UNION ALL SELECT CAST(state AS TEXT), CAST(district AS TEXT), CAST(rainfall_mm_total AS NUMERIC) FROM table2
-
-COMMON ERROR FIXES:
-- UNION type mismatch: Use only COMMON COLUMNS or cast to compatible types
-- Table structure differences: Explore individual table schemas before combining
-- Data type conflicts: Cast columns to compatible types when needed (TEXT, NUMERIC, INTEGER)
-
-FINAL LOOP BEHAVIOR:
-- If {loop_count} == {max_loops}, set need_exploration = false
-- Generate the most comprehensive analytical query possible with available information
-- Use data from exploration_context to inform your final query
-- Do not request more exploration, provide the final data-driven analysis
-- **CREATE INSIGHTS, DON'T JUST EXTRACT DATA**
-
-ERROR RECOVERY BEHAVIOR:
-- If exploration_context contains failed queries, LEARN from the errors and fix them
-- If a query failed due to wrong table alias (like rd.column vs rch.column), fix the alias
-- Set need_exploration = true if you need to test a corrected query (unless final loop)
-
-Return your response in this EXACT JSON format:
-{{
-    "need_exploration": true/false,
-    "sql_query": "YOUR ANALYTICAL SQL QUERY HERE",
-    "explanation": "Brief explanation of the agricultural insights this query provides and what metrics it calculates for decision-making"
-}}
-
-Examples of GOOD analytical exploration (only if NOT final loop):
-- SELECT DISTINCT state, district FROM groundwater_data_2024_2025 WHERE UPPER(state) LIKE '%TAMIL%' ORDER BY district LIMIT 20;
-- SELECT AVG("Rainfall (mm)_Total"), AVG("Stage of Ground Water Extraction (%)_Total") FROM groundwater_data_2024_2025 WHERE UPPER(district) LIKE '%CHENNAI%';
-- SELECT "Rainfall (mm)_Total", "Annual Extractable Ground water Resource (ham)_Total" FROM groundwater_data_2024_2025 WHERE district ILIKE '%chennai%' LIMIT 10;
-
-Examples of EXCELLENT final analytical queries:
-- Multi-metric crop suitability analysis with scoring
-- Comparative water availability assessment
-- Seasonal water pattern analysis for crop planning
-- Water stress vs crop water requirement matching
-
-NEVER DO:
-- Say "data not available" without attempting analysis
-- SELECT * FROM table1 UNION ALL SELECT * FROM table2 (will cause type mismatch errors)
-- Assume all tables have identical structures
-- Use columns that don't exist in all tables when doing UNION operations
-- Give up on analysis - always find relevant water metrics!
-
-CRITICAL: The district column has mixed types (double precision in 2012-2013, text in others) - ALWAYS cast to TEXT
-
-Remember: Your goal is to be an agricultural water resource analyst, not just a data extractor!
-    """
+    Do NOT include any text outside the JSON object. Do NOT wrap the JSON in code blocks or markdown.
+        """
             )
             
             try:
@@ -482,6 +346,19 @@ Remember: Your goal is to be an agricultural water resource analyst, not just a 
                     if not sql_query:
                         logger.error("Empty SQL query received from LLM")
                         continue
+                    
+                    # CRITICAL FIX: Detect and prevent SELECT * UNION operations
+                    if 'select *' in sql_query.lower() and 'union' in sql_query.lower():
+                        logger.error("Detected SELECT * with UNION - this will cause type mismatch!")
+                        if loop_count < max_loops:
+                            # Add error to exploration data and continue
+                            exploration_data.append({
+                                'query': sql_query,
+                                'results': "Query contains SELECT * with UNION - this causes type mismatch errors. Use explicit column selection with casting: SELECT CAST(state AS TEXT), CAST(district AS TEXT), ...",
+                                'explanation': explanation,
+                                'status': 'failed'
+                            })
+                            continue
                     
                     # If this is the final query or no exploration needed, test it first
                     if not need_exploration or loop_count >= max_loops:
@@ -558,7 +435,6 @@ Remember: Your goal is to be an agricultural water resource analyst, not just a 
         logger.error("Feedback loop completed without final query - this should not happen")
         raise Exception("LLM failed to provide final query within the specified loops")
 
-
     def _execute_exploration_query(self, sql_query: str) -> Tuple[bool, str]:
         """Execute an exploration query and return formatted results"""
         try:
@@ -577,11 +453,8 @@ Remember: Your goal is to be an agricultural water resource analyst, not just a 
     
     def generate_visualization(self, user_question: str, data: pd.DataFrame) -> Optional[go.Figure]:
         """Generate a visualization using LLM to select chart type"""
-        viz_keywords = ["plot", "chart", "visualize", "show", "trend", "compare", "distribution", "map", "hierarchy", "graph", "display", "top", "highest", "lowest", "maximum", "minimum", "best", "better", "analysis"]
-        has_viz_keyword = any(keyword in user_question.lower() for keyword in viz_keywords)
         
         logger.info(f"Checking for visualization keywords in: '{user_question}'")
-        logger.info(f"Has visualization keyword: {has_viz_keyword}")
         logger.info(f"Data empty: {data.empty}")
         logger.info(f"Data shape: {data.shape if not data.empty else 'N/A'}")
         
