@@ -741,7 +741,7 @@ Response:
             logger.error(f"Error generating natural response: {e}")
             return f"I found the data you requested, but encountered an error generating the response. Here's a summary: {results_summary}"
     
-    def process_user_query(self, user_question: str) -> Dict:
+    def process_user_query(self, user_question: str, include_visualization: bool = True) -> Dict:
         """Main method to process user query end-to-end"""
         result = {
             'success': False,
@@ -763,7 +763,8 @@ Response:
                 result['error'] = message
                 return result
             result['data'] = data
-            result['visualization'] = self.generate_visualization(user_question, data)
+            if include_visualization:
+                result['visualization'] = self.generate_visualization(user_question, data)
             natural_response = self.generate_natural_response(user_question, data, sql_query)
             result['response'] = natural_response
             result['success'] = True

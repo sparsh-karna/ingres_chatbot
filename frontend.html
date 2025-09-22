@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INGRES AI ChatBot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #1f4e79, #2c5282);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .mode-selector {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .mode-btn {
+            padding: 12px 24px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .mode-btn:first-child {
+            border-radius: 10px 0 0 10px;
+        }
+
+        .mode-btn:last-child {
+            border-radius: 0 10px 10px 0;
+        }
+
+        .mode-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .query-section {
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .query-section.active {
+            display: block;
+        }
+
+        .chat-section {
+            display: none;
+            margin-bottom: 30px;
+        }
+
+        .chat-section.active {
+            display: block;
+        }
+
+        .chat-container {
+            height: 400px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.assistant {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: #667eea;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            color: #2d3748;
+            border: 1px solid #e2e8f0;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-input-container {
+            display: flex;
+            padding: 15px;
+            border-top: 1px solid #e2e8f0;
+            background: white;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 25px;
+            outline: none;
+            margin-right: 10px;
+        }
+
+        .chat-input:focus {
+            border-color: #667eea;
+        }
+
+        .send-btn {
+            padding: 12px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            background: #5a6fd8;
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .query-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            resize: vertical;
+            min-height: 120px;
+            font-family: inherit;
+        }
+
+        .query-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .sample-questions {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .sample-questions h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+
+        .sample-question {
+            background: white;
+            padding: 10px 15px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .sample-question:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .sql-query {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+
+        .sql-query pre {
+            margin: 0;
+            white-space: pre-wrap;
+        }
+
+        .response-text {
+            background: #f0f4ff;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            margin: 20px 0;
+        }
+
+        .data-table {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        tr:hover {
+            background: #f8fafc;
+        }
+
+        .visualization {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #e53e3e;
+            margin: 20px 0;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #4a5568;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .button-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💧 INGRES AI ChatBot</h1>
+            <p>Intelligent Virtual Assistant for India Ground Water Resource Estimation System</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Mode Selector -->
+            <div class="mode-selector">
+                <button class="mode-btn active" onclick="switchMode('query')">🔍 Single Query</button>
+                <button class="mode-btn" onclick="switchMode('chat')">💬 Chat Mode</button>
+            </div>
+
+            <!-- Single Query Section -->
+            <div class="query-section active" id="querySection">
+                <h3>Ask Your Question</h3>
+                <textarea 
+                    id="queryInput" 
+                    class="query-input" 
+                    placeholder="e.g., What are the top 5 states with highest groundwater recharge in 2024-2025?"
+                ></textarea>
+                
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="submitQuery()">🚀 Ask ChatBot</button>
+                    <button class="btn btn-secondary" onclick="clearQuery()">🗑️ Clear</button>
+                    <button class="btn btn-secondary" onclick="downloadResults()">📥 Download CSV</button>
+                </div>
+            </div>
+
+            <!-- Chat Section -->
+            <div class="chat-section" id="chatSection">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3>💬 Chat with INGRES AI</h3>
+                    <div>
+                        <button class="btn btn-secondary" onclick="newChatSession()" style="margin-right: 10px;">🆕 New Session</button>
+                        <button class="btn btn-secondary" onclick="clearChat()">🗑️ Clear Chat</button>
+                    </div>
+                </div>
+                
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message assistant">
+                            <div class="message-content">
+                                Hello! I'm INGRES AI, your assistant for groundwater resource data. Ask me anything about groundwater recharge, extraction, rainfall data, or specific states and districts. I'll remember our conversation context to provide better answers.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-input-container">
+                        <input 
+                            type="text" 
+                            class="chat-input" 
+                            id="chatInput" 
+                            placeholder="Type your question about groundwater data..."
+                            onkeypress="handleChatKeyPress(event)"
+                        />
+                        <button class="send-btn" id="sendBtn" onclick="sendChatMessage()">
+                            📤 Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sample-questions">
+                <h3>💡 Sample Questions</h3>
+                <div id="sampleQuestions"></div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Processing your question...</p>
+            </div>
+
+            <div class="results" id="results">
+                <div id="errorMessage" class="error" style="display: none;"></div>
+                
+                <div id="statsSection" class="stats" style="display: none;"></div>
+                
+                <div id="responseSection" style="display: none;">
+                    <h3>📊 Analysis</h3>
+                    <div id="responseText" class="response-text"></div>
+                </div>
+
+                <div id="sqlSection" style="display: none;">
+                    <h3>🔍 Generated SQL Query</h3>
+                    <div class="sql-query">
+                        <pre id="sqlQuery"></pre>
+                    </div>
+                </div>
+
+                <div id="dataSection" style="display: none;">
+                    <h3>📋 Data Table</h3>
+                    <div class="data-table">
+                        <table id="dataTable">
+                            <thead id="tableHead"></thead>
+                            <tbody id="tableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="visualizationSection" style="display: none;">
+                    <h3>📈 Visualization</h3>
+                    <div id="plotDiv" class="visualization"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8001';
+        let currentQueryData = null;
+        let currentSessionId = null;
+        let currentMode = 'query';
+
+        // Load sample questions on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSampleQuestions();
+        });
+
+        async function loadSampleQuestions() {
+            try {
+                const response = await fetch(`${API_BASE}/sample-questions`);
+                const data = await response.json();
+                
+                const container = document.getElementById('sampleQuestions');
+                container.innerHTML = '';
+                
+                data.sample_questions.forEach(question => {
+                    const div = document.createElement('div');
+                    div.className = 'sample-question';
+                    div.textContent = question;
+                    div.onclick = () => {
+                        document.getElementById('queryInput').value = question;
+                    };
+                    container.appendChild(div);
+                });
+            } catch (error) {
+                console.error('Error loading sample questions:', error);
+            }
+        }
+
+        async function submitQuery() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query) {
+                alert('Please enter a question');
+                return;
+            }
+
+            showLoading();
+            hideResults();
+
+            try {
+                const response = await fetch(`${API_BASE}/query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: query,
+                        include_visualization: true
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    currentQueryData = result;
+                    displayResults(result);
+                } else {
+                    showError(result.error || 'An error occurred');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Failed to connect to the server');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function displayResults(result) {
+            showResults();
+            
+            // Display stats
+            displayStats(result.metadata);
+            
+            // Display response
+            if (result.response) {
+                document.getElementById('responseText').textContent = result.response;
+                document.getElementById('responseSection').style.display = 'block';
+            }
+            
+            // Display SQL query
+            if (result.sql_query) {
+                document.getElementById('sqlQuery').textContent = result.sql_query;
+                document.getElementById('sqlSection').style.display = 'block';
+            }
+            
+            // Display data table
+            if (result.data && result.data.length > 0) {
+                displayTable(result.data);
+                document.getElementById('dataSection').style.display = 'block';
+            }
+            
+            // Display visualization
+            if (result.visualization) {
+                displayVisualization(result.visualization);
+                document.getElementById('visualizationSection').style.display = 'block';
+            }
+        }
+
+        function displayStats(metadata) {
+            const statsSection = document.getElementById('statsSection');
+            statsSection.innerHTML = '';
+            
+            const stats = [
+                { label: 'Rows Returned', value: metadata.rows_returned || 0 },
+                { label: 'Columns', value: metadata.columns ? metadata.columns.length : 0 },
+                { label: 'Has Visualization', value: metadata.has_visualization ? 'Yes' : 'No' }
+            ];
+            
+            stats.forEach(stat => {
+                const div = document.createElement('div');
+                div.className = 'stat-card';
+                div.innerHTML = `
+                    <div class="stat-value">${stat.value}</div>
+                    <div class="stat-label">${stat.label}</div>
+                `;
+                statsSection.appendChild(div);
+            });
+            
+            statsSection.style.display = 'grid';
+        }
+
+        function displayTable(data) {
+            if (!data || data.length === 0) return;
+            
+            const thead = document.getElementById('tableHead');
+            const tbody = document.getElementById('tableBody');
+            
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+            
+            // Create header
+            const headerRow = document.createElement('tr');
+            Object.keys(data[0]).forEach(key => {
+                const th = document.createElement('th');
+                th.textContent = key;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            
+            // Create data rows (limit to first 100 for performance)
+            data.slice(0, 100).forEach(row => {
+                const tr = document.createElement('tr');
+                Object.values(row).forEach(value => {
+                    const td = document.createElement('td');
+                    td.textContent = value !== null ? value : '';
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            
+            if (data.length > 100) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = Object.keys(data[0]).length;
+                td.textContent = `... showing first 100 of ${data.length} rows`;
+                td.style.textAlign = 'center';
+                td.style.fontStyle = 'italic';
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+            }
+        }
+
+        function displayVisualization(vizData) {
+            try {
+                Plotly.newPlot('plotDiv', vizData.data, vizData.layout, {responsive: true});
+            } catch (error) {
+                console.error('Error displaying visualization:', error);
+            }
+        }
+
+        async function downloadResults() {
+            if (!currentQueryData) {
+                alert('No data to download. Please submit a query first.');
+                return;
+            }
+
+            const query = document.getElementById('queryInput').value.trim();
+            try {
+                const response = await fetch(`${API_BASE}/download`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: query,
+                        include_visualization: false
+                    })
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `ingres_query_result_${new Date().toISOString().slice(0,10)}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    alert('Failed to download data');
+                }
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('Failed to download data');
+            }
+        }
+
+        function clearQuery() {
+            document.getElementById('queryInput').value = '';
+            hideResults();
+            currentQueryData = null;
+        }
+
+        function showLoading() {
+            document.getElementById('loading').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('show');
+        }
+
+        function showResults() {
+            document.getElementById('results').classList.add('show');
+        }
+
+        function hideResults() {
+            document.getElementById('results').classList.remove('show');
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('statsSection').style.display = 'none';
+            document.getElementById('responseSection').style.display = 'none';
+            document.getElementById('sqlSection').style.display = 'none';
+            document.getElementById('dataSection').style.display = 'none';
+            document.getElementById('visualizationSection').style.display = 'none';
+        }
+
+        function showError(message) {
+            showResults();
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorMessage').style.display = 'block';
+        }
+
+        // =============== CHAT FUNCTIONS ===============
+
+        function switchMode(mode) {
+            // Update mode buttons
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Hide all sections
+            document.getElementById('querySection').classList.remove('active');
+            document.getElementById('chatSection').classList.remove('active');
+            
+            // Show selected section
+            if (mode === 'query') {
+                document.getElementById('querySection').classList.add('active');
+                currentMode = 'query';
+            } else if (mode === 'chat') {
+                document.getElementById('chatSection').classList.add('active');
+                currentMode = 'chat';
+                if (!currentSessionId) {
+                    newChatSession();
+                }
+            }
+            
+            // Hide any previous results
+            hideResults();
+        }
+
+        async function newChatSession() {
+            try {
+                const response = await fetch(`${API_BASE}/chat/new-session`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    currentSessionId = result.session_id;
+                    clearChatMessages();
+                    addMessageToChat('assistant', "Hello! I'm INGRES AI, your assistant for groundwater resource data. Ask me anything about groundwater recharge, extraction, rainfall data, or specific states and districts. I'll remember our conversation context to provide better answers.");
+                } else {
+                    console.error('Failed to create new session');
+                }
+            } catch (error) {
+                console.error('Error creating session:', error);
+            }
+        }
+
+        function clearChat() {
+            if (currentSessionId) {
+                fetch(`${API_BASE}/chat/session/${currentSessionId}`, {
+                    method: 'DELETE'
+                }).catch(console.error);
+            }
+            clearChatMessages();
+            addMessageToChat('assistant', "Chat cleared! How can I help you with groundwater data?");
+        }
+
+        function clearChatMessages() {
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.innerHTML = '';
+        }
+
+        function addMessageToChat(role, content, showTyping = false) {
+            const chatMessages = document.getElementById('chatMessages');
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            if (showTyping) {
+                contentDiv.innerHTML = '💭 Thinking...';
+                setTimeout(() => {
+                    contentDiv.innerHTML = content;
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }, 1000);
+            } else {
+                contentDiv.innerHTML = content;
+            }
+            
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return messageDiv;
+        }
+
+        function handleChatKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendChatMessage();
+            }
+        }
+
+        async function sendChatMessage() {
+            const chatInput = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const question = chatInput.value.trim();
+            
+            if (!question) return;
+            
+            // Add user message to chat
+            addMessageToChat('user', question);
+            
+            // Clear input and disable button
+            chatInput.value = '';
+            sendBtn.disabled = true;
+            sendBtn.textContent = '⏳ Processing...';
+            
+            // Add thinking message
+            const thinkingMessage = addMessageToChat('assistant', '💭 Analyzing your question...', true);
+            
+            try {
+                const response = await fetch(`${API_BASE}/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: question,
+                        session_id: currentSessionId,
+                        include_visualization: true
+                    })
+                });
+
+                const result = await response.json();
+                
+                // Remove thinking message
+                thinkingMessage.remove();
+                
+                if (response.ok && result.success) {
+                    currentSessionId = result.session_id;
+                    
+                    // Add assistant response
+                    let assistantResponse = result.response;
+                    if (result.explanation) {
+                        assistantResponse += '\n\n📊 **Analysis:** ' + result.explanation;
+                    }
+                    
+                    // Add data summary if available
+                    if (result.data && result.data.length > 0) {
+                        assistantResponse += `\n\n📈 **Data Found:** ${result.data.length} records`;
+                        if (result.metadata.columns) {
+                            assistantResponse += `\n📋 **Columns:** ${result.metadata.columns.join(', ')}`;
+                        }
+                    }
+                    
+                    // Add SQL query info
+                    if (result.sql_query) {
+                        assistantResponse += `\n\n💻 **SQL Query Used:**\n\`\`\`sql\n${result.sql_query}\n\`\`\``;
+                    }
+                    
+                    addMessageToChat('assistant', assistantResponse.replace(/\n/g, '<br>'));
+                    
+                    // Store current data for download
+                    currentQueryData = result;
+                    
+                    // Show visualization if available
+                    if (result.visualization) {
+                        displayVisualization(result.visualization);
+                    }
+                    
+                } else {
+                    addMessageToChat('assistant', `❌ Error: ${result.error || 'Something went wrong'}`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                thinkingMessage.remove();
+                addMessageToChat('assistant', '❌ Failed to connect to the server. Please try again.');
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = '📤 Send';
+                chatInput.focus();
+            }
+        }
+
+        function displayVisualization(vizData) {
+            // Create a visualization message in chat
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message assistant';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.style.maxWidth = '90%';
+            contentDiv.style.padding = '5px';
+            
+            const vizDiv = document.createElement('div');
+            vizDiv.style.width = '100%';
+            vizDiv.style.height = '400px';
+            
+            contentDiv.appendChild(vizDiv);
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            
+            // Render the Plotly chart
+            try {
+                Plotly.newPlot(vizDiv, vizData.data, vizData.layout, {responsive: true});
+            } catch (error) {
+                console.error('Error displaying visualization:', error);
+                contentDiv.innerHTML = '📊 Visualization data available but could not display chart.';
+            }
+            
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    </script>
+</body>
+</html>
