@@ -13,6 +13,9 @@ from langchain.prompts import PromptTemplate
 import logging
 from database_manager import DatabaseManager
 from query_processor import QueryProcessor
+import google.generativeai as genai
+import csv
+import io
 
 logger = logging.getLogger(__name__)
 
@@ -410,3 +413,51 @@ def create_error_response(error_message: str, session_id: str = None) -> Dict[st
         },
         "chat_history": []
     }
+
+def decide_graph_from_string(csv_content: str):
+    genai.configure(api_key="AIzaSyCzf-iCpO6ZV9G48b5fLB4XyfvhL4ReP3U")
+    # Read CSV string using StringIO
+    f = io.StringIO(csv_content)
+    reader = csv.DictReader(f)
+    data = [row for row in reader]
+
+    if not data:
+        return None, []
+
+    head_sample = data[:20]
+    schema = [
+        {"name": key, "sampleValues": list({row[key] for row in data if row[key]})[:5]}
+        for key in data[0].keys()
+    ]
+
+    viz_options = [
+        {"srno": 3, "name": "Bar 3", "description": "This chart is a powerful tool for comparing multiple data series across a set of categories..."},
+        {"srno": 6, "name": "Bar 6", "description": "A bar chart. Each bar represents a category, and its length or height corresponds..."},
+        {"srno": 1, "name": "Composition 1", "description": "This is a multi-line chart, which plots multiple data series on a single graph..."},
+        {"srno": 7, "name": "Composition 7", "description": "A composition chart, used to display continuous data over a specified period..."},
+        {"srno": 4, "name": "Donut 4", "description": "A donut chart is a variation of a pie chart with a circular hole in the center..."},
+    ]
+
+    prompt = f"""
+You are an AI agent that chooses the best visualization type for a dataset.
+Return ONLY the srno (number) of the best chart.
+
+Schema:
+{json.dumps(schema, indent=2)}
+
+Sample rows:
+{json.dumps(head_sample, indent=2)}
+
+Visualization options:
+{json.dumps(viz_options, indent=2)}
+"""
+
+    model = genai.GenerativeModel("gemini-1.5-flash-latest")
+    response = model.generate_content(prompt).text
+
+    try:
+        srno = int(response.strip())
+    except ValueError:
+        srno = None
+
+    return srno, data
