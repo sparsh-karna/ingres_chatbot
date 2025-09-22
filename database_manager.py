@@ -110,10 +110,34 @@ class DatabaseManager:
         """Execute SQL query and return results as DataFrame"""
         try:
             with self.engine.connect() as conn:
-                result = pd.read_sql(query, conn)
-                return result
+                # Use text() to wrap the query for better SQLAlchemy compatibility
+                result = conn.execute(text(query))
+                
+                # Convert result to DataFrame manually
+                if result.returns_rows:
+                    # Get column names
+                    columns = list(result.keys())
+                    # Get all rows
+                    rows = result.fetchall()
+                    
+                    # Convert to DataFrame
+                    if rows:
+                        # Convert Row objects to lists/tuples for DataFrame creation
+                        data = [list(row) for row in rows]
+                        df = pd.DataFrame(data, columns=columns)
+                    else:
+                        df = pd.DataFrame(columns=columns)
+                    
+                    logger.info(f"Query executed successfully, returned {len(df)} rows")
+                    return df
+                else:
+                    logger.info("Query executed but returned no rows")
+                    return pd.DataFrame()
+                    
         except Exception as e:
             logger.error(f"Error executing query: {e}")
+            import traceback
+            traceback.print_exc()
             return pd.DataFrame()
     
     def close_connection(self):
