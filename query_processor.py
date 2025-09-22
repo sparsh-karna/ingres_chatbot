@@ -507,7 +507,15 @@ Instructions:
                 "plot_functions": json.dumps(PLOT_FUNCTIONS, indent=2)
             })
             logger.info(f"LLM visualization response: {response.content.strip()}")
-            func_call = json.loads(response.content.strip())
+            
+            # Clean up markdown code blocks if present
+            response_content = response.content.strip()
+            if response_content.startswith('```json'):
+                response_content = response_content.replace('```json', '').replace('```', '').strip()
+            elif response_content.startswith('```'):
+                response_content = response_content.replace('```', '').strip()
+            
+            func_call = json.loads(response_content)
             logger.info(f"Parsed function call: {func_call}")
             
             if func_call["function_name"] == "none":
