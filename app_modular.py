@@ -19,7 +19,7 @@ from speech_service import SpeechLanguageService
 from models import (
     QueryRequest, ChatRequest, QueryResponse, ChatResponse,
     SessionResponse, SessionsListResponse, ChatHistoryResponse,
-    HealthResponse
+    HealthResponse, CSVData
 )
 from routes import Routes
 
@@ -165,6 +165,10 @@ async def execute_sql_directly(sql_query: str):
 async def serve_frontend():
     """Serve the frontend HTML file"""
     return FileResponse("frontend.html")
+
+@app.post("/decide")
+async def decide(csv_data: CSVData):
+    return await route_handlers.decide(csv_data)
 
 
 @app.get("/voice-frontend", response_class=FileResponse)

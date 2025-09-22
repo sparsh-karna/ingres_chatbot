@@ -12,7 +12,7 @@ from datetime import datetime
 from io import BytesIO
 
 from models import (
-    QueryRequest, ChatRequest, QueryResponse, ChatResponse, 
+    CSVData, QueryRequest, ChatRequest, QueryResponse, ChatResponse, 
     SessionResponse, SessionsListResponse, ChatHistoryResponse, 
     HealthResponse, ErrorResponse
 )
@@ -22,7 +22,7 @@ from helpers import (
     generate_enhanced_contextual_explanation, add_enhanced_message_to_session,
     get_enhanced_chat_context, prepare_response_data, create_response_metadata,
     format_csv_data, get_chat_history_for_response, validate_session_id,
-    create_error_response
+    create_error_response, decide_graph_from_string
 )
 
 logger = logging.getLogger(__name__)
@@ -368,3 +368,7 @@ class Routes:
         except Exception as e:
             logger.error(f"Error executing SQL: {e}")
             raise HTTPException(status_code=500, detail=str(e))
+
+    async def decide(self, csv_data: CSVData):
+        srno, data = decide_graph_from_string(csv_data.csv_content)
+        return {"srno": srno, "jsonData": data}

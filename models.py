@@ -108,3 +108,6 @@ class ErrorResponse(BaseModel):
     error: str = Field(..., description="Error message")
     details: Optional[Dict] = Field(default=None, description="Additional error details")
     timestamp: str = Field(..., description="Error timestamp")
+
+class CSVData(BaseModel):
+    csv_content: str
