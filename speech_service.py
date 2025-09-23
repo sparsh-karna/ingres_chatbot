@@ -199,6 +199,17 @@ class SpeechLanguageService:
             # Return the original text if translation service is not available
             return {"translated_text": text, "error": "Translation service not available - returning original text"}
         
+        # Check text length limit (Sarvam AI has 2000 character limit)
+        MAX_CHAR_LIMIT = 2000
+        
+        if len(text) <= MAX_CHAR_LIMIT:
+            return self._translate_single_text(text, source_language, target_language)
+        else:
+            logger.info(f"Text too long ({len(text)} chars), chunking for translation...")
+            return self._translate_long_text(text, source_language, target_language, MAX_CHAR_LIMIT)
+    
+    def _translate_single_text(self, text: str, source_language: str, target_language: str) -> Dict[str, Optional[str]]:
+        """Translate a single text chunk"""
         try:
             logger.info(f"Translating text: '{text[:50]}...' from {source_language} to {target_language}")
             response = self.client.text.translate(
@@ -257,6 +268,63 @@ class SpeechLanguageService:
             logger.error(f"Error in text translation: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
+            return {"translated_text": None, "error": str(e)}
+    
+    def _translate_long_text(self, text: str, source_language: str, target_language: str, max_chars: int) -> Dict[str, Optional[str]]:
+        """Translate long text by chunking it"""
+        try:
+            # Split text into sentences for better translation
+            sentences = text.split('. ')
+            chunks = []
+            current_chunk = ""
+            
+            for sentence in sentences:
+                # Add period back if it was removed by split
+                if not sentence.endswith('.') and sentence:
+                    sentence += '.'
+                
+                # Check if adding this sentence would exceed limit
+                if len(current_chunk) + len(sentence) + 1 <= max_chars:
+                    if current_chunk:
+                        current_chunk += " " + sentence
+                    else:
+                        current_chunk = sentence
+                else:
+                    # Current chunk is full, start a new one
+                    if current_chunk:
+                        chunks.append(current_chunk.strip())
+                    current_chunk = sentence
+            
+            # Add the last chunk if it has content
+            if current_chunk.strip():
+                chunks.append(current_chunk.strip())
+            
+            logger.info(f"Split text into {len(chunks)} chunks for translation")
+            
+            # Translate each chunk
+            translated_chunks = []
+            for i, chunk in enumerate(chunks):
+                logger.info(f"Translating chunk {i+1}/{len(chunks)}: {len(chunk)} chars")
+                result = self._translate_single_text(chunk, source_language, target_language)
+                
+                if result["error"]:
+                    logger.error(f"Chunk {i+1} translation failed: {result['error']}")
+                    # Use original chunk if translation fails
+                    translated_chunks.append(chunk)
+                else:
+                    translated_chunks.append(result["translated_text"])
+            
+            # Join all translated chunks
+            final_translation = " ".join(translated_chunks)
+            
+            logger.info(f"Long text translation completed: {len(text)} -> {len(final_translation)} chars")
+            return {
+                "translated_text": final_translation,
+                "error": None
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in long text translation: {e}")
             return {"translated_text": None, "error": str(e)}
     
     def text_to_speech(self, text: str, target_language: str, speaker: str = "anushka") -> Dict[str, Optional[Union[bytes, str]]]:
