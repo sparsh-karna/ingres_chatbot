@@ -15,6 +15,7 @@ from database_manager import DatabaseManager
 from query_processor import QueryProcessor
 import google.generativeai as genai
 import csv
+import re
 import io
 
 logger = logging.getLogger(__name__)
@@ -201,6 +202,7 @@ Please provide a comprehensive explanation that:
 4. Mentions any limitations or considerations
 5. Connects to the conversation context if relevant
 6. Uses clear, non-technical language
+7. The explaination should be in the same language as the user question.
 
 Keep the explanation informative but accessible to non-technical users.
 """
@@ -461,3 +463,10 @@ Visualization options:
         srno = None
 
     return srno, data
+
+def clean_md(text: str) -> str:
+    # Remove headings (#), emphasis (*, _, **, __), inline code (`), blockquotes (>), lists (-, +)
+    text = re.sub(r'[#*_`>\-\+]', '', text)
+    # Remove multiple spaces
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()

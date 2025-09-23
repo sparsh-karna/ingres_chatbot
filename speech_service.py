@@ -217,7 +217,7 @@ class SpeechLanguageService:
                 logger.info(f"Speech to text successful. Transcript: '{transcript}' Language: {language_code}")
                 return {
                     "transcript": transcript,
-                    "language_code": language_code or "en-IN",
+                    "language_code": language_code,
                     "error": None
                 }
             else:
