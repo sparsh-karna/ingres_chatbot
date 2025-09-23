@@ -5,11 +5,9 @@ Route Handlers for INGRES ChatBot FastAPI Backend
 import json
 import logging
 import pandas as pd
-import base64
 from fastapi import HTTPException, Query
 from typing import Dict, List, Optional
 from datetime import datetime
-from io import BytesIO
 
 from models import (
     CSVData, QueryRequest, ChatRequest, QueryResponse, ChatResponse, 
@@ -128,92 +126,9 @@ class Routes:
             raise HTTPException(status_code=500, detail=str(e))
     
     async def process_chat(self, request: ChatRequest) -> ChatResponse:
-        """Process chat message endpoint"""
+        """Process chat message endpoint with voice detection and response"""
+        session_id = None
         try:
-            question_text = None
-            detected_language = None
-            english_question = None
-            
-            # Process input based on type (text or voice)
-            if request.input_type == "voice":
-                if not request.audio_data:
-                    raise HTTPException(status_code=400, detail="Audio data is required for voice input")
-                
-                if not self.speech_service or not self.speech_service.is_available():
-                    raise HTTPException(status_code=503, detail="Speech service is not available")
-                
-                # Decode audio data
-                try:
-                    audio_bytes = base64.b64decode(request.audio_data)
-                    audio_io = BytesIO(audio_bytes)
-                except Exception as e:
-                    raise HTTPException(status_code=400, detail=f"Invalid audio data: {str(e)}")
-                
-                # Convert speech to text (should return text directly in English)
-                stt_result = self.speech_service.speech_to_text(audio_io)
-                if stt_result["error"]:
-                    raise HTTPException(status_code=500, detail=f"Speech to text failed: {stt_result['error']}")
-                
-                question_text = stt_result["transcript"]
-                detected_language = stt_result["language_code"]
-                
-                if not question_text:
-                    raise HTTPException(status_code=400, detail="Could not transcribe audio")
-                
-                # For voice input, the STT should return English text directly
-                # If it doesn't, we need to translate it
-                if detected_language and detected_language != "en-IN":
-                    logger.info(f"Translating voice input from {detected_language} to English")
-                    translation_result = self.speech_service.translate_text(
-                        text=question_text,
-                        source_language=detected_language,
-                        target_language="en-IN"
-                    )
-                    if not translation_result["error"]:
-                        english_question = translation_result["translated_text"]
-                        logger.info(f"Translated voice input to English: {english_question}")
-                    else:
-                        logger.warning(f"Translation failed, using original: {translation_result['error']}")
-                        english_question = question_text
-                else:
-                    english_question = question_text
-                
-                logger.info(f"Processing voice chat query: {english_question} (original language: {detected_language})")
-            
-            else:  # text input
-                if not request.question:
-                    raise HTTPException(status_code=400, detail="Question is required for text input")
-                
-                question_text = request.question
-                
-                # Detect language of input text
-                if self.speech_service:
-                    detected_language = self.speech_service.detect_language_from_text(question_text)
-                    logger.info(f"Detected language for text '{question_text[:50]}...': {detected_language}")
-                    
-                    # If not English, translate to English for LLM processing
-                    if detected_language and detected_language != "en-IN":
-                        logger.info(f"Translating text input from {detected_language} to English")
-                        translation_result = self.speech_service.translate_text(
-                            text=question_text,
-                            source_language=detected_language,
-                            target_language="en-IN"
-                        )
-                        if not translation_result["error"]:
-                            english_question = translation_result["translated_text"]
-                            logger.info(f"Translated text input to English: {english_question}")
-                        else:
-                            logger.warning(f"Translation failed, using original: {translation_result['error']}")
-                            english_question = question_text
-                    else:
-                        english_question = question_text
-                else:
-                    logger.info("Speech service not initialized, using original text")
-                    english_question = question_text
-                    detected_language = "en-IN"  # Default assumption
-                
-                logger.info(f"Processing text chat query: {english_question}")
-            
             # Validate and get session ID
             session_id = validate_session_id(request.session_id)
             if not session_id:
@@ -223,14 +138,57 @@ class Routes:
                 if self.db_manager.is_mongodb_available():
                     self.db_manager.create_chat_session(session_id)
             
+            # Determine if this is voice input and process accordingly
+            detected_language = None
+            question_text = None
+            
+            if request.input_type == "voice" and request.audio_data:
+                logger.info("Processing voice input")
+                
+                # Process voice input using speech service
+                if self.speech_service and self.speech_service.is_available():
+                    # Decode base64 audio data to bytes
+                    try:
+                        import base64
+                        audio_bytes = base64.b64decode(request.audio_data)
+                        logger.info(f"Decoded audio data: {len(audio_bytes)} bytes")
+                        
+                        voice_result = self.speech_service.speech_to_text(audio_bytes)
+                        logger.info(f"Speech service response: {voice_result}")
+                    except Exception as decode_error:
+                        logger.error(f"Error decoding audio data: {decode_error}")
+                        raise Exception(f"Failed to decode audio data: {decode_error}")
+                    
+                    if voice_result.get("transcript"):
+                        question_text = voice_result["transcript"]
+                        detected_language = voice_result.get("language_code", "en-IN")
+                        logger.info(f"Voice transcription successful: {question_text} (Language: {detected_language})")
+                    else:
+                        error_msg = voice_result.get("error", "Unknown transcription error")
+                        logger.error(f"Transcription failed: {error_msg}")
+                        raise Exception(f"Failed to transcribe voice input: {error_msg}")
+                else:
+                    raise Exception("Speech service not available")
+                    
+            else:
+                # Text input
+                question_text = request.question
+                if not question_text:
+                    raise Exception("No question provided")
+                
+                # Detect language from text if speech service is available
+                if self.speech_service and self.speech_service.is_available():
+                    detected_language = self.speech_service.detect_language_from_text(question_text)
+                
+            logger.info(f"Processing chat query: {question_text}")
+            
             # Get enhanced context from previous conversation
             enhanced_context = get_enhanced_chat_context(session_id, self.db_manager)
             
             # Create context-aware question if we have previous context
-            # Use english_question for LLM processing
-            contextual_question = create_context_aware_question(english_question, enhanced_context)
+            contextual_question = create_context_aware_question(question_text, enhanced_context)
             
-            # Process the query (without visualization for chat)
+            # Process the query using the query processor
             result = self.query_processor.process_user_query(
                 contextual_question, 
                 include_visualization=False  # No visualization in chat
@@ -243,61 +201,38 @@ class Routes:
             base_response = result.get('response', '')
             sql_query = result.get('sql_query', 'Query not available')
             
-            # Generate enhanced explanation (using english_question for context)
+            # Generate enhanced explanation
             explanation = await generate_enhanced_contextual_explanation(
-                english_question, sql_query, result_data, enhanced_context, base_response, self.llm
+                question_text, sql_query, result_data, enhanced_context, base_response, self.llm
             )
             
             # Prepare response data
             response_data = prepare_response_data(result_data)
             csv_data = format_csv_data(result_data)
             
-            # Process multilingual response - translate LLM output back to detected language
+            # Handle voice output if input was voice
             translated_response = base_response
-            audio_response_data = None
+            audio_response = None
             
-            if self.speech_service and self.speech_service.is_available() and detected_language and detected_language != "en-IN":
-                logger.info(f"Translating LLM response from English to {detected_language}")
-                logger.info(f"Original response: {base_response[:100]}...")
+            if request.input_type == "voice" and detected_language and self.speech_service and self.speech_service.is_available():
+                # No translation - use original response
+                translated_response = base_response
                 
-                # Translate the response back to the detected language
-                translation_result = self.speech_service.translate_text(
-                    text=base_response,
-                    source_language="en-IN",
+                # Generate audio response in the same language as input
+                audio_result = self.speech_service.text_to_speech(
+                    base_response, 
                     target_language=detected_language
                 )
                 
-                logger.info(f"Translation result: {translation_result}")
-                
-                if not translation_result["error"] and translation_result["translated_text"]:
-                    translated_response = translation_result["translated_text"]
-                    logger.info(f"✅ Successfully translated response to {detected_language}: {translated_response[:100]}...")
-                else:
-                    logger.warning(f"❌ Response translation failed: {translation_result['error']}")
-                    logger.warning(f"Falling back to English response")
-                    translated_response = base_response  # Fallback to English
-                
-                # For voice input, also generate audio response
-                if request.input_type == "voice":
-                    logger.info(f"Generating audio response in {detected_language}")
-                    tts_result = self.speech_service.text_to_speech(
-                        text=translated_response,
-                        target_language=detected_language
-                    )
-                    
-                    if not tts_result["error"] and tts_result["audio_data"]:
-                        audio_response_data = base64.b64encode(tts_result["audio_data"]).decode('utf-8')
-                        logger.info(f"Generated audio response: {len(tts_result['audio_data'])} bytes")
-                    else:
-                        logger.warning(f"Audio generation failed: {tts_result['error']}")
-            else:
-                logger.info(f"Multilingual processing skipped: speech_service_available={self.speech_service and self.speech_service.is_available()}, detected_language={detected_language}")
-                if detected_language == "en-IN":
-                    logger.info("No translation needed - detected language is English")
+                if audio_result.get("audio_data"):
+                    # Convert audio bytes to base64 string
+                    import base64
+                    audio_response = base64.b64encode(audio_result["audio_data"]).decode('utf-8')
+                    logger.info("Audio response generated successfully")
             
-            # Add messages to session (use original question_text for user message)
+            # Add messages to session
             add_enhanced_message_to_session(
-                session_id, question_text, translated_response, 
+                session_id, question_text, base_response, 
                 sql_query, result_data, explanation, self.db_manager
             )
             
@@ -312,30 +247,44 @@ class Routes:
             )
             
             logger.info("Chat query processed successfully")
-            logger.info(f"Final response language: {detected_language}")
-            logger.info(f"Response text: {translated_response[:100]}...")
             
             return ChatResponse(
                 success=True,
                 session_id=session_id,
                 sql_query=sql_query,
-                response=translated_response,  # Use translated response as primary response
+                response=base_response,
                 translated_response=translated_response,
                 explanation=explanation,
                 data=response_data,
                 csv_data=csv_data,
                 error="",
                 visualization=None,  # No visualization in chat
-                audio_response=audio_response_data,
+                audio_response=audio_response,
                 detected_language=detected_language,
+                input_type=request.input_type,
                 metadata=metadata,
                 chat_history=chat_history
             )
             
         except Exception as e:
             logger.error(f"Error processing chat: {e}")
-            error_response = create_error_response(str(e), session_id)
-            return ChatResponse(**error_response)
+            return ChatResponse(
+                success=False,
+                session_id=session_id or "",
+                sql_query="",
+                response="",
+                translated_response=None,
+                explanation="",
+                data=[],
+                csv_data="",
+                error=str(e),
+                visualization=None,
+                audio_response=None,
+                detected_language=None,
+                input_type=getattr(request, 'input_type', 'text'),
+                metadata={"has_error": True},
+                chat_history=[]
+            )
     
     async def create_new_chat_session(self) -> SessionResponse:
         """Create new chat session endpoint"""

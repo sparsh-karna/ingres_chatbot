@@ -727,6 +727,7 @@ Instructions:
 8. Stick to the facts in the data, avoid speculation, and do not make assumptions beyond the data provided.
 0. Give answered backed by data
 10. Dont mention SQL anywhere in the response
+11. The response should be in the same language as the question
 Response:
 """
         )

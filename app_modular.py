@@ -163,8 +163,8 @@ async def execute_sql_directly(sql_query: str):
 
 @app.get("/frontend", response_class=FileResponse)
 async def serve_frontend():
-    """Serve the frontend HTML file"""
-    return FileResponse("frontend.html")
+    """Serve the simple frontend HTML file"""
+    return FileResponse("frontend_simple.html")
 
 @app.post("/decide")
 async def decide(csv_data: CSVData):
@@ -180,7 +180,7 @@ async def serve_voice_frontend():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        "app:app",
+        "app_modular:app",
         host="0.0.0.0",
         port=8001,
         reload=True

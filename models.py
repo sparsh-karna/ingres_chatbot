@@ -20,7 +20,6 @@ class ChatRequest(BaseModel):
     input_type: str = Field(default="text", description="Input type: 'text' or 'voice'")
     session_id: Optional[str] = Field(default=None, description="Chat session ID")
     include_visualization: bool = Field(default=False, description="Whether to generate visualization")
-    language_preference: Optional[str] = Field(default=None, description="Preferred language for response")
 
 
 class ChatMessage(BaseModel):
@@ -59,7 +58,7 @@ class ChatResponse(BaseModel):
     session_id: str = Field(..., description="Chat session ID")
     sql_query: str = Field(..., description="Generated SQL query")
     response: str = Field(..., description="Natural language response")
-    translated_response: Optional[str] = Field(default=None, description="Response in user's language")
+    translated_response: Optional[str] = Field(default=None, description="Response in user's language (for voice input)")
     explanation: str = Field(..., description="LLM explanation of the results")
     data: List[Dict[str, Any]] = Field(..., description="Query results data")
     csv_data: str = Field(..., description="Results in CSV format")
@@ -67,6 +66,7 @@ class ChatResponse(BaseModel):
     visualization: Optional[Dict] = Field(default=None, description="Plotly visualization JSON")
     audio_response: Optional[str] = Field(default=None, description="Base64 encoded audio response (for voice input)")
     detected_language: Optional[str] = Field(default=None, description="Detected input language")
+    input_type: str = Field(default="text", description="Type of input processed")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Response metadata")
     chat_history: List[ChatMessage] = Field(default_factory=list, description="Recent chat history")
 

@@ -120,39 +120,44 @@ class SpeechLanguageService:
             # Handle different input types
             if isinstance(audio_file, str):
                 # File path
+                logger.info(f"Processing audio file: {audio_file}")
                 with open(audio_file, "rb") as f:
-                    file_obj = f
                     response = self.client.speech_to_text.translate(
-                        file=file_obj,
-                        model="saaras:v2.5"
+                        file=f,
+                        model="saaras:v1"
                     )
-            elif isinstance(audio_file, bytes):
-                # Bytes data
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
-                    temp_file.write(audio_file)
+            elif isinstance(audio_file, (bytes, BytesIO)):
+                # Bytes data or BytesIO object
+                if isinstance(audio_file, BytesIO):
+                    audio_file.seek(0)
+                    audio_data = audio_file.read()
+                else:
+                    audio_data = audio_file
+                
+                logger.info(f"Processing audio bytes: {len(audio_data)} bytes")
+                
+                # Create a temporary file with proper extension
+                # Use .webm extension since that's what the browser sends
+                with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as temp_file:
+                    temp_file.write(audio_data)
                     temp_file.flush()
+                    logger.info(f"Created temporary file: {temp_file.name}")
                     
-                    with open(temp_file.name, "rb") as f:
-                        response = self.client.speech_to_text.translate(
-                            file=f,
-                            model="saaras:v2.5"
-                        )
-                    
-                    os.unlink(temp_file.name)  # Clean up temp file
-            elif isinstance(audio_file, BytesIO):
-                # BytesIO object
-                audio_file.seek(0)
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
-                    temp_file.write(audio_file.read())
-                    temp_file.flush()
-                    
-                    with open(temp_file.name, "rb") as f:
-                        response = self.client.speech_to_text.translate(
-                            file=f,
-                            model="saaras:v2.5"
-                        )
-                    
-                    os.unlink(temp_file.name)  # Clean up temp file
+                    try:
+                        with open(temp_file.name, "rb") as f:
+                            logger.info("Sending audio to Sarvam AI for transcription...")
+                            response = self.client.speech_to_text.translate(
+                                file=f,
+                                model="saaras:v1"
+                            )
+                            logger.info(f"Sarvam AI response received: {type(response)}")
+                    finally:
+                        # Clean up temp file
+                        try:
+                            os.unlink(temp_file.name)
+                            logger.info("Temporary file cleaned up")
+                        except:
+                            pass
             else:
                 return {"transcript": None, "language_code": None, "error": "Invalid audio file format"}
             
@@ -160,53 +165,119 @@ class SpeechLanguageService:
             transcript = None
             language_code = None
             
+            logger.info(f"Processing Sarvam AI response: {response}")
+            
             try:
-                # If response is a dict-like object
-                if isinstance(response, dict):
-                    output = response.get("output") or response.get("data") or {}
-                    
+                # Check if response has direct attributes first (SDK object)
+                if hasattr(response, 'transcript'):
+                    transcript = response.transcript
+                elif hasattr(response, 'text'):
+                    transcript = response.text
+                elif hasattr(response, 'output'):
+                    # Check if output has transcript
+                    output = response.output
+                    if hasattr(output, 'transcript'):
+                        transcript = output.transcript
+                    elif hasattr(output, 'text'):
+                        transcript = output.text
+                
+                # Try to get language code
+                if hasattr(response, 'language_code'):
+                    language_code = response.language_code
+                elif hasattr(response, 'detected_language'):
+                    language_code = response.detected_language
+                elif hasattr(response, 'output'):
+                    output = response.output
+                    if hasattr(output, 'language_code'):
+                        language_code = output.language_code
+                    elif hasattr(output, 'detected_language'):
+                        language_code = output.detected_language
+                
+                # If SDK approach didn't work, try dict-like access
+                if not transcript and isinstance(response, dict):
                     transcript = (
                         response.get("transcript") or response.get("text") or 
-                        output.get("transcript") or output.get("text")
+                        response.get("output", {}).get("transcript") or
+                        response.get("output", {}).get("text")
                     )
                     
+                if not language_code and isinstance(response, dict):
                     language_code = (
                         response.get("language_code") or response.get("detected_language") or
-                        output.get("language_code") or output.get("detected_language")
+                        response.get("output", {}).get("language_code") or
+                        response.get("output", {}).get("detected_language")
                     )
-                else:
-                    # Try attribute access for SDK objects
-                    transcript = getattr(response, "transcript", None) or getattr(response, "text", None)
-                    language_code = getattr(response, "language_code", None) or getattr(response, "detected_language", None)
-            except Exception:
-                pass
+                    
+            except Exception as extract_error:
+                logger.error(f"Error extracting data from response: {extract_error}")
+                logger.error(f"Response type: {type(response)}")
+                logger.error(f"Response content: {response}")
             
-            logger.info(f"Speech to text conversion successful. Language: {language_code}")
-            return {
-                "transcript": transcript,
-                "language_code": language_code,
-                "error": None
-            }
+            if transcript:
+                logger.info(f"Speech to text successful. Transcript: '{transcript}' Language: {language_code}")
+                return {
+                    "transcript": transcript,
+                    "language_code": language_code or "en-IN",
+                    "error": None
+                }
+            else:
+                logger.error(f"No transcript found in response: {response}")
+                return {"transcript": None, "language_code": None, "error": "No transcript found in Sarvam AI response"}
             
         except Exception as e:
             logger.error(f"Error in speech to text conversion: {e}")
             return {"transcript": None, "language_code": None, "error": str(e)}
     
     def translate_text(self, text: str, source_language: str, target_language: str = "en-IN") -> Dict[str, Optional[str]]:
-        """Translate text from source language to target language"""
+        """Translate text from source language to target language for TTS only"""
         if not self.client:
-            logger.warning(f"Sarvam AI client not available. Cannot translate from {source_language} to {target_language}")
-            # Return the original text if translation service is not available
-            return {"translated_text": text, "error": "Translation service not available - returning original text"}
+            return {"translated_text": text, "error": "Translation service not available"}
         
-        # Check text length limit (Sarvam AI has 2000 character limit)
-        MAX_CHAR_LIMIT = 2000
-        
-        if len(text) <= MAX_CHAR_LIMIT:
-            return self._translate_single_text(text, source_language, target_language)
-        else:
-            logger.info(f"Text too long ({len(text)} chars), chunking for translation...")
-            return self._translate_long_text(text, source_language, target_language, MAX_CHAR_LIMIT)
+        # If same language, no translation needed
+        if source_language == target_language:
+            return {"translated_text": text, "error": None}
+            
+        try:
+            logger.info(f"Translating text for TTS: '{text[:50]}...' from {source_language} to {target_language}")
+            
+            # Split text into smaller chunks if it's too long (1000 char limit)
+            max_chunk_size = 900  # Leave some buffer
+            if len(text) <= max_chunk_size:
+                return self._translate_single_text(text, source_language, target_language)
+            else:
+                # Split into sentences and group them into chunks
+                sentences = text.split('. ')
+                chunks = []
+                current_chunk = ""
+                
+                for sentence in sentences:
+                    if len(current_chunk) + len(sentence) + 2 <= max_chunk_size:
+                        current_chunk += sentence + ". "
+                    else:
+                        if current_chunk:
+                            chunks.append(current_chunk.strip())
+                        current_chunk = sentence + ". "
+                
+                if current_chunk:
+                    chunks.append(current_chunk.strip())
+                
+                # Translate each chunk
+                translated_chunks = []
+                for i, chunk in enumerate(chunks):
+                    logger.info(f"Translating chunk {i+1}/{len(chunks)}: {len(chunk)} chars")
+                    result = self._translate_single_text(chunk, source_language, target_language)
+                    if result["error"]:
+                        logger.error(f"Chunk {i+1} translation failed: {result['error']}")
+                        return {"translated_text": text, "error": f"Translation failed at chunk {i+1}"}
+                    translated_chunks.append(result["translated_text"])
+                
+                final_translation = " ".join(translated_chunks)
+                logger.info(f"Long text translation completed: {len(text)} -> {len(final_translation)} chars")
+                return {"translated_text": final_translation, "error": None}
+                
+        except Exception as e:
+            logger.error(f"Error in text translation: {e}")
+            return {"translated_text": text, "error": str(e)}
     
     def _translate_single_text(self, text: str, source_language: str, target_language: str) -> Dict[str, Optional[str]]:
         """Translate a single text chunk"""
@@ -216,116 +287,31 @@ class SpeechLanguageService:
                 input=text,
                 source_language_code=source_language,
                 target_language_code=target_language,
+                model="mayura:v1",
                 speaker_gender="Male"
             )
             
+            # Extract translated text from response
+            translated_text = getattr(response, 'translated_text', None)
+            if not translated_text and isinstance(response, dict):
+                translated_text = response.get('translated_text')
+            
             logger.info(f"Translation API response: {response}")
             
-            # Extract translated text from response
-            translated_text = None
-            try:
-                if isinstance(response, dict):
-                    # Try multiple possible keys
-                    translated_text = (
-                        response.get("text") or 
-                        response.get("translated_text") or 
-                        response.get("output", {}).get("text") or
-                        response.get("output", {}).get("translated_text") or
-                        response.get("data", {}).get("text") or
-                        response.get("data", {}).get("translated_text")
-                    )
-                else:
-                    # Try attribute access for SDK objects
-                    translated_text = (
-                        getattr(response, "text", None) or 
-                        getattr(response, "translated_text", None) or
-                        getattr(response, "output", None)
-                    )
-                    
-                    # If output is an object, try to get text from it
-                    if translated_text and hasattr(translated_text, "text"):
-                        translated_text = getattr(translated_text, "text", None)
-                    elif translated_text and isinstance(translated_text, dict):
-                        translated_text = translated_text.get("text") or translated_text.get("translated_text")
-                        
-            except Exception as e:
-                logger.error(f"Error extracting translated text: {e}")
-                logger.error(f"Response type: {type(response)}")
-                logger.error(f"Response content: {response}")
-            
-            if not translated_text:
-                logger.error(f"Could not extract translated text from response: {response}")
-                return {"translated_text": None, "error": f"Could not extract translated text from API response"}
-            
-            logger.info(f"Text translation successful: {source_language} -> {target_language}")
-            logger.info(f"Translated text: '{translated_text[:100]}...'")
-            return {
-                "translated_text": translated_text,
-                "error": None
-            }
-            
+            if translated_text:
+                logger.info(f"Text translation successful: {source_language} -> {target_language}")
+                logger.info(f"Translated text: '{translated_text[:100]}...'")
+                return {"translated_text": translated_text, "error": None}
+            else:
+                logger.error(f"No translated text found in response: {response}")
+                return {"translated_text": text, "error": "No translation found in response"}
+                
         except Exception as e:
             logger.error(f"Error in text translation: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
-            return {"translated_text": None, "error": str(e)}
-    
-    def _translate_long_text(self, text: str, source_language: str, target_language: str, max_chars: int) -> Dict[str, Optional[str]]:
-        """Translate long text by chunking it"""
-        try:
-            # Split text into sentences for better translation
-            sentences = text.split('. ')
-            chunks = []
-            current_chunk = ""
-            
-            for sentence in sentences:
-                # Add period back if it was removed by split
-                if not sentence.endswith('.') and sentence:
-                    sentence += '.'
-                
-                # Check if adding this sentence would exceed limit
-                if len(current_chunk) + len(sentence) + 1 <= max_chars:
-                    if current_chunk:
-                        current_chunk += " " + sentence
-                    else:
-                        current_chunk = sentence
-                else:
-                    # Current chunk is full, start a new one
-                    if current_chunk:
-                        chunks.append(current_chunk.strip())
-                    current_chunk = sentence
-            
-            # Add the last chunk if it has content
-            if current_chunk.strip():
-                chunks.append(current_chunk.strip())
-            
-            logger.info(f"Split text into {len(chunks)} chunks for translation")
-            
-            # Translate each chunk
-            translated_chunks = []
-            for i, chunk in enumerate(chunks):
-                logger.info(f"Translating chunk {i+1}/{len(chunks)}: {len(chunk)} chars")
-                result = self._translate_single_text(chunk, source_language, target_language)
-                
-                if result["error"]:
-                    logger.error(f"Chunk {i+1} translation failed: {result['error']}")
-                    # Use original chunk if translation fails
-                    translated_chunks.append(chunk)
-                else:
-                    translated_chunks.append(result["translated_text"])
-            
-            # Join all translated chunks
-            final_translation = " ".join(translated_chunks)
-            
-            logger.info(f"Long text translation completed: {len(text)} -> {len(final_translation)} chars")
-            return {
-                "translated_text": final_translation,
-                "error": None
-            }
-            
-        except Exception as e:
-            logger.error(f"Error in long text translation: {e}")
-            return {"translated_text": None, "error": str(e)}
+            return {"translated_text": text, "error": str(e)}
+
     
     def text_to_speech(self, text: str, target_language: str, speaker: str = "anushka") -> Dict[str, Optional[Union[bytes, str]]]:
         """Convert text to speech in specified language"""
@@ -406,45 +392,46 @@ class SpeechLanguageService:
     def process_multilingual_chat_output(self, response_text: str, target_language: str, 
                                    input_type: str, translate_to_english: bool = True) -> Dict:
         """
-        Process chat output for multilingual response
-        Returns appropriate response format based on input type and language
+        Process chat output for voice response
+        Returns appropriate response format based on input type
         """
         try:
             result = {
                 "text_response": response_text,
-                "translated_response": None,
+                "translated_response": None,  # Will be set if we need translation for TTS
                 "audio_response": None,
                 "target_language": target_language,
                 "error": None
             }
             
-            # If we have a target language different from English, translate the response
-            if target_language and target_language != "en-IN":
-                logger.info(f"Translating response from en-IN to {target_language}")
-                # Translate response to target language
-                translation_result = self.translate_text(
-                    text=response_text,
-                    source_language="en-IN",
-                    target_language=target_language
-                )
-                
-                logger.info(f"Translation result: {translation_result}")
-                
-                if translation_result["error"]:
-                    logger.warning(f"Translation failed: {translation_result['error']}")
-                    result["translated_response"] = response_text  # Fallback to original
-                else:
-                    result["translated_response"] = translation_result["translated_text"]
-                    logger.info(f"Successfully translated to: {result['translated_response'][:100]}...")
-            else:
-                logger.info(f"No translation needed: target_language={target_language}")
-                result["translated_response"] = response_text
-            
-            # If input was voice, generate audio response
+            # If input was voice, generate audio response in the same language
             if input_type == "voice":
-                text_for_speech = result["translated_response"] or response_text
+                logger.info(f"Generating audio response in language: {target_language}")
+                
+                # For non-English languages, we need to translate the response for TTS
+                text_for_tts = response_text
+                if target_language != "en-IN":
+                    logger.info(f"Translating response from English to {target_language} for TTS")
+                    translation_result = self.translate_text(
+                        text=response_text,
+                        source_language="en-IN", 
+                        target_language=target_language
+                    )
+                    
+                    if translation_result["error"]:
+                        logger.warning(f"Translation failed, using English for TTS: {translation_result['error']}")
+                        text_for_tts = response_text
+                        result["translated_response"] = response_text
+                    else:
+                        text_for_tts = translation_result["translated_text"]
+                        result["translated_response"] = translation_result["translated_text"]
+                        logger.info(f"Translation successful for TTS")
+                else:
+                    result["translated_response"] = response_text
+                
+                # Generate audio in the target language
                 tts_result = self.text_to_speech(
-                    text=text_for_speech,
+                    text=text_for_tts,
                     target_language=target_language or "en-IN"
                 )
                 
@@ -453,14 +440,15 @@ class SpeechLanguageService:
                     result["audio_response"] = None
                 else:
                     result["audio_response"] = tts_result["audio_data"]
+                    logger.info(f"Audio response generated successfully in {target_language}")
             
             return result
             
         except Exception as e:
-            logger.error(f"Error processing multilingual chat output: {e}")
+            logger.error(f"Error processing chat output: {e}")
             return {
                 "text_response": response_text,
-                "translated_response": None,
+                "translated_response": response_text,
                 "audio_response": None,
                 "target_language": target_language,
                 "error": str(e)
