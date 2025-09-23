@@ -258,6 +258,7 @@ class Routes:
             
             if self.speech_service and self.speech_service.is_available() and detected_language and detected_language != "en-IN":
                 logger.info(f"Translating LLM response from English to {detected_language}")
+                logger.info(f"Original response: {base_response[:100]}...")
                 
                 # Translate the response back to the detected language
                 translation_result = self.speech_service.translate_text(
@@ -266,11 +267,14 @@ class Routes:
                     target_language=detected_language
                 )
                 
-                if not translation_result["error"]:
+                logger.info(f"Translation result: {translation_result}")
+                
+                if not translation_result["error"] and translation_result["translated_text"]:
                     translated_response = translation_result["translated_text"]
-                    logger.info(f"Successfully translated response to {detected_language}: {translated_response[:100]}...")
+                    logger.info(f"✅ Successfully translated response to {detected_language}: {translated_response[:100]}...")
                 else:
-                    logger.warning(f"Response translation failed: {translation_result['error']}")
+                    logger.warning(f"❌ Response translation failed: {translation_result['error']}")
+                    logger.warning(f"Falling back to English response")
                     translated_response = base_response  # Fallback to English
                 
                 # For voice input, also generate audio response
@@ -308,12 +312,14 @@ class Routes:
             )
             
             logger.info("Chat query processed successfully")
+            logger.info(f"Final response language: {detected_language}")
+            logger.info(f"Response text: {translated_response[:100]}...")
             
             return ChatResponse(
                 success=True,
                 session_id=session_id,
                 sql_query=sql_query,
-                response=base_response,
+                response=translated_response,  # Use translated response as primary response
                 translated_response=translated_response,
                 explanation=explanation,
                 data=response_data,

@@ -200,6 +200,7 @@ class SpeechLanguageService:
             return {"translated_text": text, "error": "Translation service not available - returning original text"}
         
         try:
+            logger.info(f"Translating text: '{text[:50]}...' from {source_language} to {target_language}")
             response = self.client.text.translate(
                 input=text,
                 source_language_code=source_language,
@@ -207,24 +208,55 @@ class SpeechLanguageService:
                 speaker_gender="Male"
             )
             
+            logger.info(f"Translation API response: {response}")
+            
             # Extract translated text from response
             translated_text = None
             try:
                 if isinstance(response, dict):
-                    translated_text = response.get("text") or response.get("translated_text")
+                    # Try multiple possible keys
+                    translated_text = (
+                        response.get("text") or 
+                        response.get("translated_text") or 
+                        response.get("output", {}).get("text") or
+                        response.get("output", {}).get("translated_text") or
+                        response.get("data", {}).get("text") or
+                        response.get("data", {}).get("translated_text")
+                    )
                 else:
-                    translated_text = getattr(response, "text", None) or getattr(response, "translated_text", None)
-            except Exception:
-                pass
+                    # Try attribute access for SDK objects
+                    translated_text = (
+                        getattr(response, "text", None) or 
+                        getattr(response, "translated_text", None) or
+                        getattr(response, "output", None)
+                    )
+                    
+                    # If output is an object, try to get text from it
+                    if translated_text and hasattr(translated_text, "text"):
+                        translated_text = getattr(translated_text, "text", None)
+                    elif translated_text and isinstance(translated_text, dict):
+                        translated_text = translated_text.get("text") or translated_text.get("translated_text")
+                        
+            except Exception as e:
+                logger.error(f"Error extracting translated text: {e}")
+                logger.error(f"Response type: {type(response)}")
+                logger.error(f"Response content: {response}")
+            
+            if not translated_text:
+                logger.error(f"Could not extract translated text from response: {response}")
+                return {"translated_text": None, "error": f"Could not extract translated text from API response"}
             
             logger.info(f"Text translation successful: {source_language} -> {target_language}")
+            logger.info(f"Translated text: '{translated_text[:100]}...'")
             return {
-                "translated_text": translated_text or str(response),
+                "translated_text": translated_text,
                 "error": None
             }
             
         except Exception as e:
             logger.error(f"Error in text translation: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return {"translated_text": None, "error": str(e)}
     
     def text_to_speech(self, text: str, target_language: str, speaker: str = "anushka") -> Dict[str, Optional[Union[bytes, str]]]:
