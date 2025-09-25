@@ -10,6 +10,7 @@ import pandas as pd
 from fastapi import HTTPException, Query
 from typing import Dict, List, Optional
 from datetime import datetime
+from io import StringIO
 
 from models import (
     CSVData, QueryRequest, ChatRequest, QueryResponse, ChatResponse, 
@@ -529,11 +530,12 @@ class Routes:
         return result
     
     async def forecast(self, csv_data: CSVForecastData, all_col: bool = True, yrs: int = 5):
+        df = pd.read_csv(StringIO(csv_data))
         try:
             forecast_result = forecast_data(
-                csv_content=csv_data.csv_content,
-                all_columns=all_col,
-                years=yrs
+                df=df,
+                predict_all_columns=all_col,
+                forecast_years=yrs
             )
             return forecast_result
         except Exception as e:
