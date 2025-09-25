@@ -5,10 +5,10 @@ import os
 # Load CSV with relationships designed for Neo4j
 df = pd.read_csv("columns_with_relationships.csv")
 
-# Neo4j connection details (env first, fallback to existing values)
-uri = "neo4j+s://be166b17.databases.neo4j.io"
-user = "neo4j"
-password = "iyynrq8inhytJkyyyvfq6B6i8CwWraNjnvRXihPEUiE"
+# Neo4j connection details via env
+uri = os.getenv("NEO4J_URI", "")
+user = os.getenv("NEO4J_USER", "")
+password = os.getenv("NEO4J_PASSWORD", "")
 
 ALLOWED_REL_TYPES = {"BELONGS_TO", "PART_OF", "SUM_OF", "DERIVED_FROM", "ATTRIBUTE_OF"}
 
