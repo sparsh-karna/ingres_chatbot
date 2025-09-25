@@ -15,7 +15,7 @@ from io import StringIO
 from models import (
     CSVData, QueryRequest, ChatRequest, QueryResponse, ChatResponse, 
     SessionResponse, SessionsListResponse, ChatHistoryResponse, 
-    HealthResponse, ErrorResponse, CSVForecastDataInput
+    HealthResponse, ErrorResponse, CSVForecastDataInput, EDADataInput
 )
 from helpers import (
     convert_numpy_types, get_or_create_session_id, add_message_to_session,
@@ -23,7 +23,8 @@ from helpers import (
     generate_enhanced_contextual_explanation, add_enhanced_message_to_session,
     get_enhanced_chat_context, prepare_response_data, create_response_metadata,
     format_csv_data, get_chat_history_for_response, validate_session_id,
-    create_error_response, decide_graph_from_string, clean_md, forecast_data, clean_forecast_data, create_sliding_windows
+    create_error_response, decide_graph_from_string, clean_md, forecast_data, clean_forecast_data, create_sliding_windows,
+    eda_analysis, display_plotly_figures, get_plotly_json_for_frontend
 )
 
 logger = logging.getLogger(__name__)
@@ -541,4 +542,16 @@ class Routes:
             return forecast_result
         except Exception as e:
             logger.error(f"Error in forecasting: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+        
+    async def eda(self, eda_input: EDADataInput):
+        try:
+            df = pd.read_csv(StringIO(eda_input.csv_content))
+            eda_result = eda_analysis(df, eda_input.user_query)
+            figures = display_plotly_figures(eda_result.get('figures', []))
+            plotly_json = get_plotly_json_for_frontend(figures)
+            eda_result['figures'] = plotly_json
+            return eda_result
+        except Exception as e:
+            logger.error(f"Error in EDA analysis: {e}")
             raise HTTPException(status_code=500, detail=str(e))
