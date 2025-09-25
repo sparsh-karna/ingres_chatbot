@@ -27,8 +27,12 @@ class SpeechLanguageService:
         """Initialize the speech and language service"""
         self.api_key = os.getenv("SARVAM_API_KEY", "")
         self.google_translation_api_key = os.getenv("GOOGLE_TRANSLATION_API", "")
+        # Azure Speech for TTS
+        self.azure_speech_key = os.getenv("AZURE_API_KEY", "")
+        self.azure_speech_region = os.getenv("AZURE_SPEECH_REGION", "centralindia")
         logger.info(f"Loading SARVAM_API_KEY: {'Found' if self.api_key else 'Not found'}")
         logger.info(f"Loading GOOGLE_TRANSLATION_API: {'Found' if self.google_translation_api_key else 'Not found'}")
+        logger.info(f"Loading AZURE_API_KEY for Speech: {'Found' if self.azure_speech_key else 'Not found'}")
         
         if not self.api_key:
             logger.warning("SARVAM_API_KEY not found. Speech functionality will be disabled.")
@@ -335,38 +339,62 @@ class SpeechLanguageService:
 
     
     def text_to_speech(self, text: str, target_language: str, speaker: str = "anushka") -> Dict[str, Optional[Union[bytes, str]]]:
-        """Convert text to speech in specified language"""
-        if not self.client:
-            return {"audio_data": None, "error": "Speech service not available"}
-        
+        """Convert text to speech using Azure Speech service for the given language code (e.g., 'hi-IN')."""
+        if not self.azure_speech_key:
+            return {"audio_data": None, "error": "Azure Speech key not available"}
+
         try:
-            response = self.client.text_to_speech.convert(
-                text=text,
-                model="bulbul:v2",
-                target_language_code=target_language,
-                speaker=speaker
+            voice_name = self._get_azure_voice_for_language(target_language)
+            endpoint = f"https://{self.azure_speech_region}.tts.speech.microsoft.com/cognitiveservices/v1"
+
+            ssml = (
+                f"<speak version='1.0' xml:lang='en-US'>"
+                f"<voice name='{voice_name}'>"
+                f"{html.escape(text)}"
+                f"</voice>"
+                f"</speak>"
             )
-            
-            # Extract audio data from response
-            audio_data = None
-            try:
-                if hasattr(response, 'audios') and response.audios:
-                    # Decode base64 audio data
-                    audio_data = base64.b64decode("".join(response.audios))
-                elif isinstance(response, dict) and response.get("audios"):
-                    audio_data = base64.b64decode("".join(response["audios"]))
-            except Exception as e:
-                logger.error(f"Error extracting audio data: {e}")
-            
-            logger.info(f"Text to speech conversion successful for language: {target_language}")
+
+            headers = {
+                "Ocp-Apim-Subscription-Key": self.azure_speech_key,
+                "Content-Type": "application/ssml+xml",
+                "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
+                "User-Agent": "ingres-tts-client"
+            }
+
+            resp = requests.post(endpoint, headers=headers, data=ssml.encode("utf-8"), timeout=30)
+            resp.raise_for_status()
+
+            audio_bytes = resp.content if resp.content else None
+            if not audio_bytes:
+                return {"audio_data": None, "error": "Empty audio returned by Azure TTS"}
+
+            logger.info(f"Azure TTS conversion successful for language: {target_language} using {voice_name}")
             return {
-                "audio_data": audio_data,
+                "audio_data": audio_bytes,
                 "error": None
             }
-            
+
         except Exception as e:
-            logger.error(f"Error in text to speech conversion: {e}")
+            logger.error(f"Error in Azure text to speech conversion: {e}")
             return {"audio_data": None, "error": str(e)}
+
+    def _get_azure_voice_for_language(self, language_code: str) -> str:
+        """Map language code like 'hi-IN' to a reasonable Azure Neural voice."""
+        # Default voices per language; adjust as needed
+        mapping = {
+            "en-IN": "en-IN-NeerjaNeural",
+            "hi-IN": "hi-IN-SwaraNeural",
+            "ta-IN": "ta-IN-PallaviNeural",
+            "te-IN": "te-IN-ShrutiNeural",
+            "bn-IN": "bn-IN-TanishaaNeural",
+            "gu-IN": "gu-IN-DhwaniNeural",
+            "kn-IN": "kn-IN-SapnaNeural",
+            "ml-IN": "ml-IN-MidhunNeural",
+            "mr-IN": "mr-IN-AarohiNeural",
+            "pa-IN": "pa-IN-BaljeetNeural",
+        }
+        return mapping.get(language_code, "en-IN-NeerjaNeural")
     
     def process_multilingual_chat_input(self, input_data: Dict) -> Dict:
         """
