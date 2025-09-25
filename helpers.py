@@ -596,11 +596,38 @@ SELECTION LOGIC:
 - Index 4: Requires sequential + 2+ numeric (good for: trend comparison)
 
 RESPONSE REQUIREMENTS:
-Return ONLY valid JSON with no additional text:
+Return ONLY valid JSON with no additional text. For each recommended graph, provide all necessary parameters:
+
 {{
   "number_of_appropriate_graphs": <integer>,
-  "graph_indices": [<array of valid indices 0-4>]
+  "graph_indices": [<array of valid indices 0-4>],
+  "graph_configs": [
+    {{
+      "index": <chart_index>,
+      "title": "<descriptive chart title>",
+      "description": "<brief explanation of what this chart shows>",
+      "x_axis_label": "<x-axis label>",
+      "y_axis_label": "<y-axis label>",
+      "data_keys": {{
+        "primary_key": "<column name for primary axis/categories>",
+        "value_keys": ["<column names for numeric values>"],
+        "color_key": "<column name for colors/grouping if needed>"
+      }},
+      "chart_specific": {{
+        // For Bar Charts (0,1): activeIndex, stackId, colors
+        // For Pie Chart (2): total calculation method, segment colors
+        // For Line Charts (3,4): dot colors, line styles, trend indicators
+      }}
+    }}
+  ]
 }}
+
+PARAMETER GENERATION GUIDELINES:
+1. **Titles**: Create descriptive, context-aware titles based on user query and data
+2. **Axis Labels**: Clear, professional labels that describe what's being measured
+3. **Data Keys**: Map actual column names from the schema to chart requirements
+4. **Colors**: Suggest appropriate color schemes or highlight important segments
+5. **Chart-Specific Config**: Include any special settings needed for optimal visualization
 
 CONSTRAINTS:
 - Only suggest charts where data requirements are technically feasible
@@ -625,10 +652,17 @@ CONSTRAINTS:
             raise ValueError("Invalid number_of_appropriate_graphs")
         if not isinstance(result.get('graph_indices'), list):
             raise ValueError("Invalid graph_indices")
+        if not isinstance(result.get('graph_configs'), list):
+            raise ValueError("Invalid graph_configs")
             
         valid_indices = [idx for idx in result['graph_indices'] if isinstance(idx, int) and 0 <= idx <= 4]
         result['graph_indices'] = valid_indices
         result['number_of_appropriate_graphs'] = len(valid_indices)
+        
+        # Filter graph_configs to match valid indices
+        valid_configs = [config for config in result.get('graph_configs', []) 
+                        if config.get('index') in valid_indices]
+        result['graph_configs'] = valid_configs
         
         return result
         
@@ -639,19 +673,55 @@ CONSTRAINTS:
         categorical_cols = dataset_info['categorical_columns']
         data_size = dataset_info['data_size']
         
+        # Enhanced fallback with basic configurations
+        def create_fallback_config(index, title, categorical_col, numeric_cols):
+            config = {
+                "index": index,
+                "title": title,
+                "description": f"Fallback chart showing {title.lower()}",
+                "x_axis_label": categorical_col if categorical_col else "Categories",
+                "y_axis_label": numeric_cols[0] if numeric_cols else "Values",
+                "data_keys": {
+                    "primary_key": categorical_col if categorical_col else schema[0]['name'],
+                    "value_keys": numeric_cols[:2] if len(numeric_cols) >= 2 else numeric_cols,
+                    "color_key": None
+                },
+                "chart_specific": {}
+            }
+            return config
+        
+        # Get available columns
+        cat_cols = [col['name'] for col in schema if col['type'] == 'categorical']
+        num_cols = [col['name'] for col in schema if col['type'] == 'numeric']
+        
         # Smart fallback based on data characteristics
         if numeric_cols >= 2 and categorical_cols >= 1:
             if data_size == "small":
-                return {"number_of_appropriate_graphs": 2, "graph_indices": [1, 2]}  # Stacked + Donut
+                configs = [
+                    create_fallback_config(1, "Stacked Comparison", cat_cols[0] if cat_cols else None, num_cols),
+                    create_fallback_config(2, "Proportional Distribution", cat_cols[0] if cat_cols else None, num_cols[:1])
+                ]
+                return {"number_of_appropriate_graphs": 2, "graph_indices": [1, 2], "graph_configs": configs}
             else:
-                return {"number_of_appropriate_graphs": 2, "graph_indices": [1, 4]}  # Stacked + Multiple lines
+                configs = [
+                    create_fallback_config(1, "Multi-Series Analysis", cat_cols[0] if cat_cols else None, num_cols),
+                    create_fallback_config(4, "Trend Comparison", cat_cols[0] if cat_cols else None, num_cols)
+                ]
+                return {"number_of_appropriate_graphs": 2, "graph_indices": [1, 4], "graph_configs": configs}
         elif numeric_cols >= 1 and categorical_cols >= 1:
             if data_size == "small" and categorical_cols <= 8:
-                return {"number_of_appropriate_graphs": 2, "graph_indices": [0, 2]}  # Active bar + Donut
+                configs = [
+                    create_fallback_config(0, "Categorical Comparison", cat_cols[0] if cat_cols else None, num_cols),
+                    create_fallback_config(2, "Distribution Analysis", cat_cols[0] if cat_cols else None, num_cols[:1])
+                ]
+                return {"number_of_appropriate_graphs": 2, "graph_indices": [0, 2], "graph_configs": configs}
             else:
-                return {"number_of_appropriate_graphs": 1, "graph_indices": [0]}  # Active bar only
+                config = create_fallback_config(0, "Data Overview", cat_cols[0] if cat_cols else None, num_cols)
+                return {"number_of_appropriate_graphs": 1, "graph_indices": [0], "graph_configs": [config]}
         else:
-            return {"number_of_appropriate_graphs": 1, "graph_indices": [0]}  # Default to basic bar chart
+            config = create_fallback_config(0, "Basic Chart", schema[0]['name'] if schema else "Category", 
+                                          [schema[1]['name']] if len(schema) > 1 else ["Value"])
+            return {"number_of_appropriate_graphs": 1, "graph_indices": [0], "graph_configs": [config]}
 
 def clean_md(text: str) -> str:
     # Remove headings (#), emphasis (*, _, **, __), inline code (`), blockquotes (>), lists (-, +)
