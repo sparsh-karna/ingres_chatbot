@@ -15,7 +15,7 @@ client = SarvamAI(
 response_text = client.text.translate(
     input="Hello, how are you?",
     source_language_code="en-IN",
-    target_language_code="ta-IN",
+    target_language_code="mr-IN",
     speaker_gender="Male"
 )
 
@@ -55,7 +55,7 @@ def get_azure_voice(language_code: str) -> str:
     }
     return mapping.get(language_code, "en-IN-NeerjaNeural")
 
-voice_name = get_azure_voice("ta-IN")
+voice_name = get_azure_voice("mr-IN")
 endpoint = f"https://{AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
 
 ssml = (

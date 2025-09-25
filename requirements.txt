@@ -107,3 +107,4 @@ uvicorn==0.36.0
 websockets==15.0.1
 yarl==1.20.1
 zstandard==0.25.0
+rapidfuzz==3.10.1

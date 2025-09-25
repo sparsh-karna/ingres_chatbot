@@ -1,0 +1,155 @@
+column_name,description,relationship
+S.No,Serial number for entry identification,
+STATE,Name of the Indian state,
+DISTRICT,Name of the district within a state,BELONGS_TO:STATE
+ASSESSMENT UNIT,Smallest administrative or hydrological unit assessed for groundwater estimation,BELONGS_TO:DISTRICT|STATE
+Rainfall (mm)_C,Rainfall (in mm) in command areas (irrigated by canals),PART_OF:Rainfall (mm)_Total
+Rainfall (mm)_NC,Rainfall (in mm) in non-command areas (not covered by canal irrigation),PART_OF:Rainfall (mm)_Total
+Rainfall (mm)_PQ,Rainfall (in mm) in poor quality areas (highly saline or otherwise unfit for conventional use),PART_OF:Rainfall (mm)_Total
+Rainfall (mm)_Total,Total rainfall (in mm) for the assessment unit (sum of categories),SUM_OF:Rainfall (mm)_C|Rainfall (mm)_NC|Rainfall (mm)_PQ
+Total Geographical Area (ha)_Recharge Worthy Area (ha)_C,Area (in hectares) within command areas suitable for groundwater recharge,PART_OF:Total Geographical Area (ha)_Recharge Worthy Area (ha)_Total
+Total Geographical Area (ha)_Recharge Worthy Area (ha)_NC,Area (ha) in non-command suitable for recharge,PART_OF:Total Geographical Area (ha)_Recharge Worthy Area (ha)_Total
+Total Geographical Area (ha)_Recharge Worthy Area (ha)_PQ,Area (ha) in poor quality regions suitable for recharge,PART_OF:Total Geographical Area (ha)_Recharge Worthy Area (ha)_Total
+Total Geographical Area (ha)_Recharge Worthy Area (ha)_Total,Total area suitable for recharge,PART_OF:Total Geographical Area (ha)_Total
+Total Geographical Area (ha)_Hilly Area,Area classified as hilly and less recharge-worthy,PART_OF:Total Geographical Area (ha)_Total
+Total Geographical Area (ha)_Total,Full area (ha) covered by the assessment unit or region,SUM_OF:Total Geographical Area (ha)_Recharge Worthy Area (ha)_Total|Total Geographical Area (ha)_Hilly Area
+Ground Water Recharge (ham)_Rainfall Recharge_C,Groundwater recharge attributed to rainfall in command areas (in hectare-meters),PART_OF:Ground Water Recharge (ham)_Rainfall Recharge_Total
+Ground Water Recharge (ham)_Rainfall Recharge_NC,Groundwater recharge attributed to rainfall in non-command areas,PART_OF:Ground Water Recharge (ham)_Rainfall Recharge_Total
+Ground Water Recharge (ham)_Rainfall Recharge_PQ,Groundwater recharge attributed to rainfall in poor quality areas,PART_OF:Ground Water Recharge (ham)_Rainfall Recharge_Total
+Ground Water Recharge (ham)_Rainfall Recharge_Total,Total groundwater recharge from rainfall,PART_OF:Ground Water Recharge (ham)_Total
+Ground Water Recharge (ham)_Canals_C,Recharge contribution from canals in command areas,PART_OF:Ground Water Recharge (ham)_Canals_Total
+Ground Water Recharge (ham)_Canals_NC,Recharge contribution from canals in non-command areas,PART_OF:Ground Water Recharge (ham)_Canals_Total
+Ground Water Recharge (ham)_Canals_PQ,Recharge contribution from canals in poor quality areas,PART_OF:Ground Water Recharge (ham)_Canals_Total
+Ground Water Recharge (ham)_Canals_Total,Total recharge from canals,PART_OF:Ground Water Recharge (ham)_Total
+Ground Water Recharge (ham)_Surface Water Irrigation_C,Recharge from surface water irrigation in command areas,PART_OF:Ground Water Recharge (ham)_Surface Water Irrigation_Total
+Ground Water Recharge (ham)_Surface Water Irrigation_NC,Recharge from surface water irrigation in non-command areas,PART_OF:Ground Water Recharge (ham)_Surface Water Irrigation_Total
+Ground Water Recharge (ham)_Surface Water Irrigation_PQ,Recharge from surface water irrigation in poor quality areas,PART_OF:Ground Water Recharge (ham)_Surface Water Irrigation_Total
+Ground Water Recharge (ham)_Surface Water Irrigation_Total,Total surface water irrigation recharge,PART_OF:Ground Water Recharge (ham)_Total
+Ground Water Recharge (ham)_Ground Water Irrigation_C,Recharge resulting from groundwater irrigation return flow in command areas,PART_OF:Ground Water Recharge (ham)_Ground Water Irrigation_Total
+Ground Water Recharge (ham)_Ground Water Irrigation_NC,Recharge resulting from groundwater irrigation return flow in non-command areas,PART_OF:Ground Water Recharge (ham)_Ground Water Irrigation_Total
+Ground Water Recharge (ham)_Ground Water Irrigation_PQ,Recharge resulting from groundwater irrigation return flow in poor quality areas,PART_OF:Ground Water Recharge (ham)_Ground Water Irrigation_Total
+Ground Water Recharge (ham)_Ground Water Irrigation_Total,Total recharge by groundwater irrigation,PART_OF:Ground Water Recharge (ham)_Total
+Ground Water Recharge (ham)_Tanks and Ponds_C,Recharge from water bodies like tanks and ponds in command areas,PART_OF:Ground Water Recharge (ham)_Tanks and Ponds_Total
+Ground Water Recharge (ham)_Tanks and Ponds_NC,Recharge from tanks and ponds in non-command areas,PART_OF:Ground Water Recharge (ham)_Tanks and Ponds_Total
+Ground Water Recharge (ham)_Tanks and Ponds_PQ,Recharge from tanks and ponds in poor quality areas,PART_OF:Ground Water Recharge (ham)_Tanks and Ponds_Total
+Ground Water Recharge (ham)_Tanks and Ponds_Total,Total recharge from tanks and ponds,PART_OF:Ground Water Recharge (ham)_Total
+Ground Water Recharge (ham)_Water Conservation Structure_C,Recharge from artificial structures for water conservation in command areas,PART_OF:Ground Water Recharge (ham)_Water Conservation Structure_Total
+Ground Water Recharge (ham)_Water Conservation Structure_NC,Recharge from water conservation structures in non-command areas,PART_OF:Ground Water Recharge (ham)_Water Conservation Structure_Total
+Ground Water Recharge (ham)_Water Conservation Structure_PQ,Recharge from water conservation structures in poor quality areas,PART_OF:Ground Water Recharge (ham)_Water Conservation Structure_Total
+Ground Water Recharge (ham)_Water Conservation Structure_Total,Total recharge from all water conservation structures,PART_OF:Ground Water Recharge (ham)_Total
+Ground Water Recharge (ham)_Pipelines_C,Recharge from seepage or leaks from pipelines in command areas,PART_OF:Ground Water Recharge (ham)_Pipelines_Total
+Ground Water Recharge (ham)_Pipelines_NC,Recharge from pipelines in non-command areas,PART_OF:Ground Water Recharge (ham)_Pipelines_Total
+Ground Water Recharge (ham)_Pipelines_PQ,Recharge from pipelines in poor quality areas,PART_OF:Ground Water Recharge (ham)_Pipelines_Total
+Ground Water Recharge (ham)_Pipelines_Total,Total recharge from pipelines,PART_OF:Ground Water Recharge (ham)_Total
+Ground Water Recharge (ham)_Sewages and Flash Flood Channels_C,Recharge from urban runoff and storm water channels in command areas,PART_OF:Ground Water Recharge (ham)_Sewages and Flash Flood Channels_Total
+Ground Water Recharge (ham)_Sewages and Flash Flood Channels_NC,Recharge from sewage and flash flood channels in non-command areas,PART_OF:Ground Water Recharge (ham)_Sewages and Flash Flood Channels_Total
+Ground Water Recharge (ham)_Sewages and Flash Flood Channels_PQ,Recharge from sewage and flood channels in poor quality areas,PART_OF:Ground Water Recharge (ham)_Sewages and Flash Flood Channels_Total
+Ground Water Recharge (ham)_Sewages and Flash Flood Channels_Total,Total recharge from sewage and flash flood channels,PART_OF:Ground Water Recharge (ham)_Total
+Ground Water Recharge (ham)_C,Aggregated groundwater recharge in command areas,SUM_OF:Ground Water Recharge (ham)_Rainfall Recharge_C|Ground Water Recharge (ham)_Canals_C|Ground Water Recharge (ham)_Surface Water Irrigation_C|Ground Water Recharge (ham)_Ground Water Irrigation_C|Ground Water Recharge (ham)_Tanks and Ponds_C|Ground Water Recharge (ham)_Water Conservation Structure_C|Ground Water Recharge (ham)_Pipelines_C|Ground Water Recharge (ham)_Sewages and Flash Flood Channels_C
+Ground Water Recharge (ham)_NC,Aggregated groundwater recharge in non-command areas,SUM_OF:Ground Water Recharge (ham)_Rainfall Recharge_NC|Ground Water Recharge (ham)_Canals_NC|Ground Water Recharge (ham)_Surface Water Irrigation_NC|Ground Water Recharge (ham)_Ground Water Irrigation_NC|Ground Water Recharge (ham)_Tanks and Ponds_NC|Ground Water Recharge (ham)_Water Conservation Structure_NC|Ground Water Recharge (ham)_Pipelines_NC|Ground Water Recharge (ham)_Sewages and Flash Flood Channels_NC
+Ground Water Recharge (ham)_PQ,Aggregated groundwater recharge in poor quality areas,SUM_OF:Ground Water Recharge (ham)_Rainfall Recharge_PQ|Ground Water Recharge (ham)_Canals_PQ|Ground Water Recharge (ham)_Surface Water Irrigation_PQ|Ground Water Recharge (ham)_Ground Water Irrigation_PQ|Ground Water Recharge (ham)_Tanks and Ponds_PQ|Ground Water Recharge (ham)_Water Conservation Structure_PQ|Ground Water Recharge (ham)_Pipelines_PQ|Ground Water Recharge (ham)_Sewages and Flash Flood Channels_PQ
+Ground Water Recharge (ham)_Total,Total aggregated groundwater recharge,SUM_OF:Ground Water Recharge (ham)_C|Ground Water Recharge (ham)_NC|Ground Water Recharge (ham)_PQ
+Inflows and Outflows (ham)_Base Flow_C,Groundwater flowing out to streams (base flow) in command areas,PART_OF:Inflows and Outflows (ham)_Base Flow_Total
+Inflows and Outflows (ham)_Base Flow_NC,Base flow to streams in non-command areas,PART_OF:Inflows and Outflows (ham)_Base Flow_Total
+Inflows and Outflows (ham)_Base Flow_PQ,Base flow to streams in poor quality areas,PART_OF:Inflows and Outflows (ham)_Base Flow_Total
+Inflows and Outflows (ham)_Base Flow_Total,Total base flow in all areas,PART_OF:Inflows and Outflows (ham)_Total
+Inflows and Outflows (ham)_Stream Recharges_C,Stream contributions to groundwater recharge in command areas,PART_OF:Inflows and Outflows (ham)_Stream Recharges_Total
+Inflows and Outflows (ham)_Stream Recharges_NC,Stream recharge in non-command areas,PART_OF:Inflows and Outflows (ham)_Stream Recharges_Total
+Inflows and Outflows (ham)_Stream Recharges_PQ,Stream recharge in poor quality areas,PART_OF:Inflows and Outflows (ham)_Stream Recharges_Total
+Inflows and Outflows (ham)_Stream Recharges_Total,Total recharge from streams,PART_OF:Inflows and Outflows (ham)_Total
+Inflows and Outflows (ham)_Lateral Flows_C,Groundwater flow from adjacent units in command areas,PART_OF:Inflows and Outflows (ham)_Lateral Flows_Total
+Inflows and Outflows (ham)_Lateral Flows_NC,Lateral groundwater flows in non-command areas,PART_OF:Inflows and Outflows (ham)_Lateral Flows_Total
+Inflows and Outflows (ham)_Lateral Flows_PQ,Lateral flows in poor quality areas,PART_OF:Inflows and Outflows (ham)_Lateral Flows_Total
+Inflows and Outflows (ham)_Lateral Flows_Total,Total lateral groundwater flows,PART_OF:Inflows and Outflows (ham)_Total
+Inflows and Outflows (ham)_Vertical Flows_C,Groundwater exchanged with deeper aquifers (vertical movement) in command areas,PART_OF:Inflows and Outflows (ham)_Vertical Flows_Total
+Inflows and Outflows (ham)_Vertical Flows_NC,Vertical groundwater flows in non-command areas,PART_OF:Inflows and Outflows (ham)_Vertical Flows_Total
+Inflows and Outflows (ham)_Vertical Flows_PQ,Vertical groundwater flows in poor quality areas,PART_OF:Inflows and Outflows (ham)_Vertical Flows_Total
+Inflows and Outflows (ham)_Vertical Flows_Total,Total vertical groundwater flows,PART_OF:Inflows and Outflows (ham)_Total
+Inflows and Outflows (ham)_Evaporation_C,Groundwater loss via evaporation in command areas,PART_OF:Inflows and Outflows (ham)_Evaporation_Total
+Inflows and Outflows (ham)_Evaporation_NC,Evaporation loss in non-command areas,PART_OF:Inflows and Outflows (ham)_Evaporation_Total
+Inflows and Outflows (ham)_Evaporation_PQ,Evaporation loss in poor quality areas,PART_OF:Inflows and Outflows (ham)_Evaporation_Total
+Inflows and Outflows (ham)_Evaporation_Total,Total groundwater lost by evaporation,PART_OF:Inflows and Outflows (ham)_Total
+Inflows and Outflows (ham)_Transpiration_C,Groundwater loss by plant transpiration in command areas,PART_OF:Inflows and Outflows (ham)_Transpiration_Total
+Inflows and Outflows (ham)_Transpiration_NC,Transpiration loss in non-command areas,PART_OF:Inflows and Outflows (ham)_Transpiration_Total
+Inflows and Outflows (ham)_Transpiration_PQ,Transpiration loss in poor quality areas,PART_OF:Inflows and Outflows (ham)_Transpiration_Total
+Inflows and Outflows (ham)_Transpiration_Total,Total groundwater lost by transpiration,PART_OF:Inflows and Outflows (ham)_Total
+Inflows and Outflows (ham)_Evapotranspiration_C,Total water lost to air through evaporation and transpiration in command areas,PART_OF:Inflows and Outflows (ham)_Evapotranspiration_Total
+Inflows and Outflows (ham)_Evapotranspiration_NC,Evapotranspiration in non-command areas,PART_OF:Inflows and Outflows (ham)_Evapotranspiration_Total
+Inflows and Outflows (ham)_Evapotranspiration_PQ,Evapotranspiration in poor quality areas,PART_OF:Inflows and Outflows (ham)_Evapotranspiration_Total
+Inflows and Outflows (ham)_Evapotranspiration_Total,Total groundwater lost by evapotranspiration,PART_OF:Inflows and Outflows (ham)_Total
+Inflows and Outflows (ham)_C,Net inflows and outflows in command areas,SUM_OF:Inflows and Outflows (ham)_Base Flow_C|Inflows and Outflows (ham)_Stream Recharges_C|Inflows and Outflows (ham)_Lateral Flows_C|Inflows and Outflows (ham)_Vertical Flows_C|Inflows and Outflows (ham)_Evaporation_C|Inflows and Outflows (ham)_Transpiration_C|Inflows and Outflows (ham)_Evapotranspiration_C
+Inflows and Outflows (ham)_NC,Net inflows and outflows in non-command areas,SUM_OF:Inflows and Outflows (ham)_Base Flow_NC|Inflows and Outflows (ham)_Stream Recharges_NC|Inflows and Outflows (ham)_Lateral Flows_NC|Inflows and Outflows (ham)_Vertical Flows_NC|Inflows and Outflows (ham)_Evaporation_NC|Inflows and Outflows (ham)_Transpiration_NC|Inflows and Outflows (ham)_Evapotranspiration_NC
+Inflows and Outflows (ham)_PQ,Net inflows and outflows in poor quality areas,SUM_OF:Inflows and Outflows (ham)_Base Flow_PQ|Inflows and Outflows (ham)_Stream Recharges_PQ|Inflows and Outflows (ham)_Lateral Flows_PQ|Inflows and Outflows (ham)_Vertical Flows_PQ|Inflows and Outflows (ham)_Evaporation_PQ|Inflows and Outflows (ham)_Transpiration_PQ|Inflows and Outflows (ham)_Evapotranspiration_PQ
+Inflows and Outflows (ham)_Total,Total net inflows and outflows,SUM_OF:Inflows and Outflows (ham)_C|Inflows and Outflows (ham)_NC|Inflows and Outflows (ham)_PQ
+Annual Ground water Recharge (ham)_C,Computed annual groundwater recharge in command areas,PART_OF:Annual Ground water Recharge (ham)_Total
+Annual Ground water Recharge (ham)_NC,Computed annual groundwater recharge in non-command areas,PART_OF:Annual Ground water Recharge (ham)_Total
+Annual Ground water Recharge (ham)_PQ,Computed annual groundwater recharge in poor quality areas,PART_OF:Annual Ground water Recharge (ham)_Total
+Annual Ground water Recharge (ham)_Total,Total computed annual groundwater recharge,SUM_OF:Annual Ground water Recharge (ham)_C|Annual Ground water Recharge (ham)_NC|Annual Ground water Recharge (ham)_PQ
+Environmental Flows (ham)_C,Minimum flows preserved for ecological needs in command areas,PART_OF:Environmental Flows (ham)_Total
+Environmental Flows (ham)_NC,Environmental flows in non-command areas,PART_OF:Environmental Flows (ham)_Total
+Environmental Flows (ham)_PQ,Environmental flows in poor quality areas,PART_OF:Environmental Flows (ham)_Total
+Environmental Flows (ham)_Total,Total environmental flows,SUM_OF:Environmental Flows (ham)_C|Environmental Flows (ham)_NC|Environmental Flows (ham)_PQ
+Annual Extractable Ground water Resource (ham)_C,Groundwater available for withdrawal in command areas,PART_OF:Annual Extractable Ground water Resource (ham)_Total
+Annual Extractable Ground water Resource (ham)_NC,Annual extractable groundwater in non-command areas,PART_OF:Annual Extractable Ground water Resource (ham)_Total
+Annual Extractable Ground water Resource (ham)_PQ,Annual extractable groundwater in poor quality areas,PART_OF:Annual Extractable Ground water Resource (ham)_Total
+Annual Extractable Ground water Resource (ham)_Total,Total extractable groundwater available for withdrawal,SUM_OF:Annual Extractable Ground water Resource (ham)_C|Annual Extractable Ground water Resource (ham)_NC|Annual Extractable Ground water Resource (ham)_PQ
+Ground Water Extraction for all uses (ha.m)_Domestic_C,Annual extraction for domestic uses in command areas,PART_OF:Ground Water Extraction for all uses (ha.m)_Domestic_Total
+Ground Water Extraction for all uses (ha.m)_Domestic_NC,Domestic water extraction in non-command areas,PART_OF:Ground Water Extraction for all uses (ha.m)_Domestic_Total
+Ground Water Extraction for all uses (ha.m)_Domestic_PQ,Domestic extraction in poor quality areas,PART_OF:Ground Water Extraction for all uses (ha.m)_Domestic_Total
+Ground Water Extraction for all uses (ha.m)_Domestic_Total,Total domestic water extraction,PART_OF:Ground Water Extraction for all uses (ha.m)_Total
+Ground Water Extraction for all uses (ha.m)_Industrial_C,Annual extraction for industrial uses in command areas,PART_OF:Ground Water Extraction for all uses (ha.m)_Industrial_Total
+Ground Water Extraction for all uses (ha.m)_Industrial_NC,Industrial extraction in non-command areas,PART_OF:Ground Water Extraction for all uses (ha.m)_Industrial_Total
+Ground Water Extraction for all uses (ha.m)_Industrial_PQ,Industrial extraction in poor quality areas,PART_OF:Ground Water Extraction for all uses (ha.m)_Industrial_Total
+Ground Water Extraction for all uses (ha.m)_Industrial_Total,Total industrial water extraction,PART_OF:Ground Water Extraction for all uses (ha.m)_Total
+Ground Water Extraction for all uses (ha.m)_Irrigation_C,Annual extraction for irrigation in command areas,PART_OF:Ground Water Extraction for all uses (ha.m)_Irrigation_Total
+Ground Water Extraction for all uses (ha.m)_Irrigation_NC,Irrigation water extraction in non-command areas,PART_OF:Ground Water Extraction for all uses (ha.m)_Irrigation_Total
+Ground Water Extraction for all uses (ha.m)_Irrigation_PQ,Irrigation extraction in poor quality areas,PART_OF:Ground Water Extraction for all uses (ha.m)_Irrigation_Total
+Ground Water Extraction for all uses (ha.m)_Irrigation_Total,Total irrigation water extraction,PART_OF:Ground Water Extraction for all uses (ha.m)_Total
+Ground Water Extraction for all uses (ha.m)_C,Total groundwater extraction in command areas,SUM_OF:Ground Water Extraction for all uses (ha.m)_Domestic_C|Ground Water Extraction for all uses (ha.m)_Industrial_C|Ground Water Extraction for all uses (ha.m)_Irrigation_C
+Ground Water Extraction for all uses (ha.m)_NC,Total groundwater extraction in non-command areas,SUM_OF:Ground Water Extraction for all uses (ha.m)_Domestic_NC|Ground Water Extraction for all uses (ha.m)_Industrial_NC|Ground Water Extraction for all uses (ha.m)_Irrigation_NC
+Ground Water Extraction for all uses (ha.m)_PQ,Total groundwater extraction in poor quality areas,SUM_OF:Ground Water Extraction for all uses (ha.m)_Domestic_PQ|Ground Water Extraction for all uses (ha.m)_Industrial_PQ|Ground Water Extraction for all uses (ha.m)_Irrigation_PQ
+Ground Water Extraction for all uses (ha.m)_Total,Total groundwater extraction across all uses,SUM_OF:Ground Water Extraction for all uses (ha.m)_Domestic_Total|Ground Water Extraction for all uses (ha.m)_Industrial_Total|Ground Water Extraction for all uses (ha.m)_Irrigation_Total
+Stage of Ground Water Extraction (%)_C,Percentage of extractable resource withdrawn in command areas,DERIVED_FROM:Ground Water Extraction for all uses (ha.m)_C|Annual Extractable Ground water Resource (ham)_C
+Stage of Ground Water Extraction (%)_NC,Percentage withdrawn in non-command areas,DERIVED_FROM:Ground Water Extraction for all uses (ha.m)_NC|Annual Extractable Ground water Resource (ham)_NC
+Stage of Ground Water Extraction (%)_PQ,Percentage withdrawn in poor quality areas,DERIVED_FROM:Ground Water Extraction for all uses (ha.m)_PQ|Annual Extractable Ground water Resource (ham)_PQ
+Stage of Ground Water Extraction (%)_Total,Overall percentage of extraction to availability,DERIVED_FROM:Ground Water Extraction for all uses (ha.m)_Total|Annual Extractable Ground water Resource (ham)_Total
+Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham)_C,Estimated future domestic use allocation in command areas,PART_OF:Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham)_Total
+Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham)_NC,Estimated future domestic use allocation in non-command areas,PART_OF:Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham)_Total
+Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham)_PQ,Estimated future domestic use allocation in poor quality areas,PART_OF:Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham)_Total
+Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham)_Total,Total projected domestic use allocation,SUM_OF:Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham)_C|Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham)_NC|Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham)_PQ
+Net Annual Ground Water Availability for Future Use (ham)_C,Resource available for future use in command areas,PART_OF:Net Annual Ground Water Availability for Future Use (ham)_Total|DERIVED_FROM:Annual Extractable Ground water Resource (ham)_C|Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham)_C
+Net Annual Ground Water Availability for Future Use (ham)_NC,Resource available for future use in non-command areas,PART_OF:Net Annual Ground Water Availability for Future Use (ham)_Total|DERIVED_FROM:Annual Extractable Ground water Resource (ham)_NC|Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham)_NC
+Net Annual Ground Water Availability for Future Use (ham)_PQ,Resource available for future use in poor quality areas,PART_OF:Net Annual Ground Water Availability for Future Use (ham)_Total|DERIVED_FROM:Annual Extractable Ground water Resource (ham)_PQ|Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham)_PQ
+Net Annual Ground Water Availability for Future Use (ham)_Total,Total annual groundwater available for future use,SUM_OF:Net Annual Ground Water Availability for Future Use (ham)_C|Net Annual Ground Water Availability for Future Use (ham)_NC|Net Annual Ground Water Availability for Future Use (ham)_PQ
+Quality Tagging_Major Parameter Present_C,Presence of major contaminants in command areas,ATTRIBUTE_OF:ASSESSMENT UNIT
+Quality Tagging_Major Parameter Present_NC,Presence of major contaminants in non-command areas,ATTRIBUTE_OF:ASSESSMENT UNIT
+Quality Tagging_Major Parameter Present_PQ,Presence of major contaminants in poor quality areas,ATTRIBUTE_OF:ASSESSMENT UNIT
+Quality Tagging_Other Parameters Present_C,Presence of other contaminants in command areas,ATTRIBUTE_OF:ASSESSMENT UNIT
+Quality Tagging_Other Parameters Present_NC,Presence of other contaminants in non-command areas,ATTRIBUTE_OF:ASSESSMENT UNIT
+Quality Tagging_Other Parameters Present_PQ,Presence of other contaminants in poor quality areas,ATTRIBUTE_OF:ASSESSMENT UNIT
+Additional Potential Resources Under Specific Conditions(ham)_Waterlogged and shallow water Table,Special groundwater potential in waterlogged or shallow table areas,ATTRIBUTE_OF:ASSESSMENT UNIT
+Additional Potential Resources Under Specific Conditions(ham)_Flood Prone,Extra groundwater potential in flood-prone areas,ATTRIBUTE_OF:ASSESSMENT UNIT
+Additional Potential Resources Under Specific Conditions(ham)_Spring Discharge,Groundwater potential from spring discharges,ATTRIBUTE_OF:ASSESSMENT UNIT
+Coastal Areas_C,Groundwater aspects specific to command coastal areas,PART_OF:Coastal Areas_Total
+Coastal Areas_NC,Groundwater aspects specific to non-command coastal areas,PART_OF:Coastal Areas_Total
+Coastal Areas_PQ,Groundwater aspects specific to poor quality coastal areas,PART_OF:Coastal Areas_Total
+Coastal Areas_Total,Total coastal area groundwater aspects,SUM_OF:Coastal Areas_C|Coastal Areas_NC|Coastal Areas_PQ
+In-Storage Unconfined Ground Water Resources(ham)_Fresh,Volume of fresh groundwater in unconfined (shallow) aquifer,PART_OF:Total Ground Water Availability in Unconfined Aquifier (ham)_Fresh
+In-Storage Unconfined Ground Water Resources(ham)_Saline,Volume of saline groundwater in unconfined aquifer,PART_OF:Total Ground Water Availability in Unconfined Aquifier (ham)_Saline
+Total Ground Water Availability in Unconfined Aquifier (ham)_Fresh,Total fresh groundwater available in unconfined aquifer,PART_OF:Total Ground Water Availability in the area (ham)_Fresh
+Total Ground Water Availability in Unconfined Aquifier (ham)_Saline,Total saline groundwater available in unconfined aquifer,PART_OF:Total Ground Water Availability in the area (ham)_Saline
+Dynamic Confined Ground Water Resources(ham)_Fresh,Actively replenished fresh groundwater in confined aquifer,PART_OF:Total Confined Ground Water Resources (ham)_Fresh
+Dynamic Confined Ground Water Resources(ham)_Saline,Actively replenished saline groundwater in confined aquifer,PART_OF:Total Confined Ground Water Resources (ham)_Saline
+In-Storage Confined Ground Water Resources(ham)_Fresh,Stored (not easily replenished) fresh groundwater in confined aquifer,PART_OF:Total Confined Ground Water Resources (ham)_Fresh
+In-Storage Confined Ground Water Resources(ham)_Saline,Stored saline groundwater in confined aquifer,PART_OF:Total Confined Ground Water Resources (ham)_Saline
+Total Confined Ground Water Resources (ham)_Fresh,Total (dynamic + storage) fresh groundwater in confined aquifer,PART_OF:Total Ground Water Availability in the area (ham)_Fresh
+Total Confined Ground Water Resources (ham)_Saline,Total confined saline groundwater,PART_OF:Total Ground Water Availability in the area (ham)_Saline
+Dynamic Semi Confined Ground Water Resources (ham)_Fresh,Actively replenished fresh groundwater in semi-confined aquifer,PART_OF:Total Semi-Confined Ground Water Resources (ham)_Fresh
+Dynamic Semi Confined Ground Water Resources (ham)_Saline,Actively replenished saline groundwater in semi-confined aquifer,PART_OF:Total Semi-Confined Ground Water Resources (ham)_Saline
+In-Storage Semi Confined Ground Water Resources (ham)_Fresh,Stored fresh groundwater in semi-confined aquifer,PART_OF:Total Semi-Confined Ground Water Resources (ham)_Fresh
+In-Storage Semi Confined Ground Water Resources (ham)_Saline,Stored saline groundwater in semi-confined aquifer,PART_OF:Total Semi-Confined Ground Water Resources (ham)_Saline
+Total Semi-Confined Ground Water Resources (ham)_Fresh,Aggregate of dynamic and in-storage fresh groundwater in semi-confined aquifer,PART_OF:Total Ground Water Availability in the area (ham)_Fresh
+Total Semi-Confined Ground Water Resources (ham)_Saline,Aggregate of dynamic and in-storage saline groundwater in semi-confined aquifer,PART_OF:Total Ground Water Availability in the area (ham)_Saline
+Total Ground Water Availability in the area (ham)_Fresh,Sum total fresh groundwater of all aquifer types for the unit,SUM_OF:Total Ground Water Availability in Unconfined Aquifier (ham)_Fresh|Total Confined Ground Water Resources (ham)_Fresh|Total Semi-Confined Ground Water Resources (ham)_Fresh
+Total Ground Water Availability in the area (ham)_Saline,Sum total saline groundwater of all aquifer types for the unit,SUM_OF:Total Ground Water Availability in Unconfined Aquifier (ham)_Saline|Total Confined Ground Water Resources (ham)_Saline|Total Semi-Confined Ground Water Resources (ham)_Saline
+
