@@ -22,7 +22,7 @@ from helpers import (
     generate_enhanced_contextual_explanation, add_enhanced_message_to_session,
     get_enhanced_chat_context, prepare_response_data, create_response_metadata,
     format_csv_data, get_chat_history_for_response, validate_session_id,
-    create_error_response, decide_graph_from_string, clean_md
+    create_error_response, decide_graph_from_string, clean_md, forecast_data
 )
 
 logger = logging.getLogger(__name__)

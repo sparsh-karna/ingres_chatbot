@@ -353,7 +353,7 @@
                 debugLog('Creating new session...', 'log');
                 showStatus('Creating new session...', 'info');
                 
-                const response = await fetch('http://0.0.0.0:8001/chat/new-session', {
+                const response = await fetch('http://172.18.96.182:8001/chat/new-session', {
                     method: 'POST'
                 });
                 
@@ -570,7 +570,7 @@
                 debugLog('Sending chat request...', 'log');
                 showStatus('Processing your request...', 'info');
                 
-                const response = await fetch('http://0.0.0.0:8001/chat', {
+                const response = await fetch('http://172.18.96.182:8001/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
