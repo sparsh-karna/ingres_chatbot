@@ -537,24 +537,6 @@ def decide_graph_from_string(csv_content: str, user_query: str = "", response_te
         },
         {
             "index": 4,
-            "name": "Line Chart - Interactive",
-            "description": "Interactive time-series line chart with date axis and multiple metrics",
-            "code_structure": {
-                "data_format": "[{date: '2024-04-01', metric1: 222, metric2: 150}, ...]",
-                "required_fields": ["date (YYYY-MM-DD)", "1+ numeric metrics"],
-                "recharts_config": "LineChart with XAxis dateKey, interactive buttons, activeDot",
-                "card_elements": "CardHeader with metric toggles, interactive controls, time formatting"
-            },
-            "data_requirements": {
-                "min_columns": 2,
-                "date_cols": 1,
-                "numeric_cols": "1+",
-                "ideal_rows": "20+ (time series)",
-                "example": "Daily/Monthly groundwater levels, Multi-year trends"
-            }
-        },
-        {
-            "index": 5,
             "name": "Line Chart - Multiple",
             "description": "Multiple line series comparison over time periods",
             "code_structure": {
@@ -611,14 +593,13 @@ SELECTION LOGIC:
 - Index 1: Requires 1 categorical + 2+ numeric (good for: composition, multi-metric)
 - Index 2: Requires 1 categorical + 1 numeric, max 8 categories (good for: proportions)
 - Index 3: Requires sequential + 1 numeric (good for: trends, patterns)
-- Index 4: Requires date column + numeric (good for: time series)
-- Index 5: Requires sequential + 2+ numeric (good for: trend comparison)
+- Index 4: Requires sequential + 2+ numeric (good for: trend comparison)
 
 RESPONSE REQUIREMENTS:
 Return ONLY valid JSON with no additional text:
 {{
   "number_of_appropriate_graphs": <integer>,
-  "graph_indices": [<array of valid indices 0-5>]
+  "graph_indices": [<array of valid indices 0-4>]
 }}
 
 CONSTRAINTS:
@@ -645,7 +626,7 @@ CONSTRAINTS:
         if not isinstance(result.get('graph_indices'), list):
             raise ValueError("Invalid graph_indices")
             
-        valid_indices = [idx for idx in result['graph_indices'] if isinstance(idx, int) and 0 <= idx <= 5]
+        valid_indices = [idx for idx in result['graph_indices'] if isinstance(idx, int) and 0 <= idx <= 4]
         result['graph_indices'] = valid_indices
         result['number_of_appropriate_graphs'] = len(valid_indices)
         
@@ -663,7 +644,7 @@ CONSTRAINTS:
             if data_size == "small":
                 return {"number_of_appropriate_graphs": 2, "graph_indices": [1, 2]}  # Stacked + Donut
             else:
-                return {"number_of_appropriate_graphs": 2, "graph_indices": [1, 5]}  # Stacked + Multiple lines
+                return {"number_of_appropriate_graphs": 2, "graph_indices": [1, 4]}  # Stacked + Multiple lines
         elif numeric_cols >= 1 and categorical_cols >= 1:
             if data_size == "small" and categorical_cols <= 8:
                 return {"number_of_appropriate_graphs": 2, "graph_indices": [0, 2]}  # Active bar + Donut

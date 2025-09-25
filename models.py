@@ -113,3 +113,6 @@ class CSVData(BaseModel):
     csv_content: str
     user_query: Optional[str] = ""
     response_text: Optional[str] = ""
+
+class CSVForecastData(BaseModel):
+    csv_content: str
