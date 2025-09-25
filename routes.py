@@ -142,6 +142,7 @@ class Routes:
             # Determine if this is voice input and process accordingly
             detected_language = None
             question_text = None
+            original_question_text = None  # Keep original question for LLM response generation
             
             if request.input_type == "voice" and request.audio_data:
                 logger.info("Processing voice input")
@@ -162,40 +163,34 @@ class Routes:
                     
                     if voice_result.get("transcript"):
                         question_text = voice_result["transcript"]
+                        original_question_text = question_text  # Keep original for LLM response
                         detected_language = voice_result.get("language_code", "en-IN")
                         logger.info(f"Voice transcription successful: {question_text} (Language: {detected_language})")
                         
-                        # If detected language is not English, translate to English using LLM
-                        if detected_language != "en-IN":
-                            logger.info(f"Translating question from {detected_language} to English using LLM")
+                        # If detected language is not English, translate to English for SQL processing only
+                        if detected_language != "en-IN" and self.speech_service.is_translation_available():
+                            logger.info(f"Translating question from {detected_language} to English for SQL processing")
                             
-                            # Create language mapping for better LLM understanding
-                            language_map = {
-                                "hi-IN": "Hindi", "gu-IN": "Gujarati", "mr-IN": "Marathi", 
-                                "bn-IN": "Bengali", "ta-IN": "Tamil", "te-IN": "Telugu",
-                                "kn-IN": "Kannada", "ml-IN": "Malayalam", "pa-IN": "Punjabi",
-                                "or-IN": "Odia", "as-IN": "Assamese"
-                            }
-                            source_language_name = language_map.get(detected_language, detected_language)
-                            
-                            # Use LLM to translate the question to English
-                            translation_prompt = f"""Please translate the following text to {source_language_name} . 
-                            Only return the translation, no additional text or explanations.
-
-{source_language_name} text to translate: {question_text}"""
-
                             try:
-                                llm_translation = await self.llm.ainvoke(translation_prompt)
-                                if hasattr(llm_translation, 'content'):
-                                    translated_question = llm_translation.content.strip()
-                                else:
-                                    translated_question = str(llm_translation).strip()
+                                translation_result = self.speech_service.translate_text(
+                                    text=question_text,
+                                    source_language=detected_language,
+                                    target_language="en-IN"
+                                )
                                 
-                                logger.info(f"LLM translation successful: '{question_text}' -> '{translated_question}'")
-                                question_text = translated_question  # Use translated question for processing
-                            except Exception as llm_error:
-                                logger.error(f"LLM translation failed: {llm_error}, using original question")
+                                if translation_result.get("translated_text") and not translation_result.get("error"):
+                                    translated_question = translation_result["translated_text"]
+                                    logger.info(f"Translation successful for SQL processing: '{question_text}' -> '{translated_question}'")
+                                    question_text = translated_question  # Use translated question only for SQL processing
+                                else:
+                                    logger.error(f"Translation failed: {translation_result.get('error')}, using original question")
+                                    # Keep original question_text if translation fails
+                            except Exception as translation_error:
+                                logger.error(f"Translation error: {translation_error}, using original question")
                                 # Keep original question_text if translation fails
+                        elif detected_language != "en-IN":
+                            logger.warning("Translation service not available for voice input, using original transcription")
+                            # Keep original question_text if translation service not available
                         
                     else:
                         error_msg = voice_result.get("error", "Unknown transcription error")
@@ -206,14 +201,44 @@ class Routes:
             else:
                 # Text input
                 question_text = request.question
+                original_question_text = question_text  # Keep original for LLM response
                 if not question_text:
                     raise Exception("No question provided")
                 
                 # Detect language from text if speech service is available
                 if self.speech_service and self.speech_service.is_available():
                     detected_language = self.speech_service.detect_language_from_text(question_text)
+                    
+                    # If detected language is not English, translate to English for SQL processing only
+                    if detected_language and detected_language != "en-IN" and self.speech_service.is_translation_available():
+                        logger.info(f"Translating text input from {detected_language} to English for SQL processing")
+                        
+                        try:
+                            translation_result = self.speech_service.translate_text(
+                                text=question_text,
+                                source_language=detected_language,
+                                target_language="en-IN"
+                            )
+                            
+                            if translation_result.get("translated_text") and not translation_result.get("error"):
+                                translated_question = translation_result["translated_text"]
+                                logger.info(f"Text translation successful for SQL processing: '{question_text}' -> '{translated_question}'")
+                                question_text = translated_question  # Use translated question only for SQL processing
+                            else:
+                                logger.error(f"Text translation failed: {translation_result.get('error')}, using original question")
+                                # Keep original question_text if translation fails
+                        except Exception as translation_error:
+                            logger.error(f"Text translation error: {translation_error}, using original question")
+                            # Keep original question_text if translation fails
+                    elif detected_language and detected_language != "en-IN":
+                        logger.warning("Translation service not available, using original text")
+                        # Keep original question_text if translation service not available
                 
             logger.info(f"Processing chat query: {question_text}")
+            
+            # Ensure we have an original question (fallback to processed question if no translation occurred)
+            if not original_question_text:
+                original_question_text = question_text
             
             # Get enhanced context from previous conversation
             enhanced_context = get_enhanced_chat_context(session_id, self.db_manager)
@@ -222,9 +247,11 @@ class Routes:
             contextual_question = create_context_aware_question(question_text, enhanced_context)
             
             # Process the query using the query processor
+            # Pass both translated question (for SQL) and original question (for LLM response)
             result = self.query_processor.process_user_query(
-                contextual_question, 
-                include_visualization=False  # No visualization in chat
+                contextual_question,  # Translated/processed question for SQL generation
+                include_visualization=False,  # No visualization in chat
+                original_question=original_question_text  # Original question for LLM response
             )
             
             if not result.get('success', False):
@@ -234,52 +261,21 @@ class Routes:
             base_response = result.get('response', '')
             sql_query = result.get('sql_query', 'Query not available')
             
-            # Generate enhanced explanation
+            # Generate enhanced explanation using original question so it's in the right language
             explanation = await generate_enhanced_contextual_explanation(
-                question_text, sql_query, result_data, enhanced_context, base_response, self.llm
+                original_question_text, sql_query, result_data, enhanced_context, base_response, self.llm
             )
             
             # Prepare response data
             response_data = prepare_response_data(result_data)
             csv_data = format_csv_data(result_data)
             
-            # Handle voice output if input was voice
-            translated_response = base_response
+            # Handle audio output (no response translation needed since LLM responds in original language)
+            translated_response = base_response  # LLM already responded in the original language
             audio_response = None
             
+            # Generate audio response only for voice input
             if request.input_type == "voice" and detected_language and self.speech_service and self.speech_service.is_available():
-                # If detected language is not English, use LLM to translate the response back
-                if detected_language != "en-IN":
-                    logger.info(f"Using LLM to translate response back to detected language: {detected_language}")
-                    
-                    # Create language mapping for better LLM understanding
-                    language_map = {
-                        "hi-IN": "Hindi", "gu-IN": "Gujarati", "mr-IN": "Marathi", 
-                        "bn-IN": "Bengali", "ta-IN": "Tamil", "te-IN": "Telugu",
-                        "kn-IN": "Kannada", "ml-IN": "Malayalam", "pa-IN": "Punjabi",
-                        "or-IN": "Odia", "as-IN": "Assamese"
-                    }
-                    target_language_name = language_map.get(detected_language, detected_language)
-                    
-                    # Use LLM to translate the response back to user's language
-                    translation_prompt = f"""Please translate the following English text to {target_language_name}. 
-                    Only return the translation, no additional text or explanations.
-
-English text to translate: {base_response}"""
-
-                    try:
-                        llm_translation = await self.llm.ainvoke(translation_prompt)
-                        if hasattr(llm_translation, 'content'):
-                            translated_response = llm_translation.content.strip()
-                        else:
-                            translated_response = str(llm_translation).strip()
-                        logger.info(f"LLM response translation successful to {target_language_name}")
-                    except Exception as llm_error:
-                        logger.error(f"LLM response translation failed: {llm_error}, using original response")
-                        translated_response = base_response
-                else:
-                    translated_response = base_response
-                
                 # Generate audio response in the detected language using the translated text
                 cleaned_translated_text = clean_md(translated_response)
                 audio_result = self.speech_service.text_to_speech(
