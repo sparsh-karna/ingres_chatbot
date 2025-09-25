@@ -114,5 +114,7 @@ class CSVData(BaseModel):
     user_query: Optional[str] = ""
     response_text: Optional[str] = ""
 
-class CSVForecastData(BaseModel):
+class CSVForecastDataInput(BaseModel):
     csv_content: str
+    all_col: bool = True
+    yrs: int = 5

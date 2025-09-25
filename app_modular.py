@@ -19,7 +19,7 @@ from speech_service import SpeechLanguageService
 from models import (
     QueryRequest, ChatRequest, QueryResponse, ChatResponse,
     SessionResponse, SessionsListResponse, ChatHistoryResponse,
-    HealthResponse, CSVData, CSVForecastData
+    HealthResponse, CSVData, CSVForecastDataInput
 )
 from routes import Routes
 from helpers import clean_md
@@ -177,9 +177,9 @@ async def serve_voice_frontend():
     """Serve the voice-enabled frontend HTML file"""
     return FileResponse("frontend_voice.html")
 
-@app.get("/forecast", response_class=CSVForecastData)
-async def forecast(self, csv_data: CSVForecastData, all_col: bool, yrs: int):
-    return await route_handlers.forecast(csv_data, all_col, yrs)
+@app.post("/forecast")
+async def forecast(csv_data: CSVForecastDataInput):
+    return await route_handlers.forecast(csv_data)
 
 
 # --- Twilio SMS webhook ---

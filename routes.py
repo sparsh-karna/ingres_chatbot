@@ -15,7 +15,7 @@ from io import StringIO
 from models import (
     CSVData, QueryRequest, ChatRequest, QueryResponse, ChatResponse, 
     SessionResponse, SessionsListResponse, ChatHistoryResponse, 
-    HealthResponse, ErrorResponse
+    HealthResponse, ErrorResponse, CSVForecastDataInput
 )
 from helpers import (
     convert_numpy_types, get_or_create_session_id, add_message_to_session,
@@ -529,13 +529,13 @@ class Routes:
         )
         return result
     
-    async def forecast(self, csv_data: CSVForecastData, all_col: bool = True, yrs: int = 5):
-        df = pd.read_csv(StringIO(csv_data))
+    async def forecast(self, csv_data: CSVForecastDataInput):
+        df = pd.read_csv(StringIO(csv_data.csv_content))
         try:
             forecast_result = forecast_data(
                 df=df,
-                predict_all_columns=all_col,
-                forecast_years=yrs
+                predict_all_columns=csv_data.all_col,
+                forecast_years=csv_data.yrs
             )
             return forecast_result
         except Exception as e:
