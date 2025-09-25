@@ -548,9 +548,12 @@ class Routes:
         try:
             df = pd.read_csv(StringIO(eda_input.csv_content))
             eda_result = eda_analysis(df, eda_input.user_query)
-            figures = display_plotly_figures(eda_result.get('figures', []))
-            plotly_json = get_plotly_json_for_frontend(figures)
-            eda_result['figures'] = plotly_json
+
+            if 'figures' in eda_result:
+                figures = display_plotly_figures(eda_result['figures'])
+                plotly_json = get_plotly_json_for_frontend(figures)
+                eda_result['figures'] = plotly_json
+            
             return eda_result
         except Exception as e:
             logger.error(f"Error in EDA analysis: {e}")
