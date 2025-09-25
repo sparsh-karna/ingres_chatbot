@@ -176,6 +176,10 @@ async def serve_voice_frontend():
     """Serve the voice-enabled frontend HTML file"""
     return FileResponse("frontend_voice.html")
 
+@app.get("/forecast", response_class=CSVData)
+async def forecast(self, csv_data: CSVData, all_col: Boolean, yrs: Number):
+    return await route_handlers.forecast(csv_data, all_col, yrs)
+
 
 if __name__ == "__main__":
     import uvicorn

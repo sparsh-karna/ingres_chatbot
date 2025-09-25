@@ -17,6 +17,10 @@ import google.generativeai as genai
 import csv
 import re
 import io
+import torch
+import torch.nn as nn
+from sklearn.preprocessing import MinMaxScaler
+from custom_models import GRUPredictor
 
 logger = logging.getLogger(__name__)
 
@@ -470,3 +474,112 @@ def clean_md(text: str) -> str:
     # Remove multiple spaces
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
+
+def clean_forecast_data(df: pd.DataFrame, window: int = 3) -> pd.DataFrame:
+    """
+    Cleans a DataFrame by:
+      1. Removing non-numeric columns.
+      2. Replacing negative values with NaN.
+      3. Filling NaN values with the average of up to `window` neighbors
+         above and below in the same column.
+      4. If no valid neighbors exist, uses the column's overall mean.
+    
+    Parameters:
+        df (pd.DataFrame): Input DataFrame.
+        window (int): Number of neighbors to consider above and below.
+    
+    Returns:
+        pd.DataFrame: Cleaned numeric-only DataFrame.
+    """
+    # Keep only numeric columns
+    df_numeric = df.select_dtypes(include=[np.number]).copy()
+    
+    # Convert negatives to NaN
+    df_numeric[df_numeric < 0] = np.nan
+    
+    for col in df_numeric.columns:
+        col_mean = df_numeric[col].mean(skipna=True)
+        
+        for idx in df_numeric.index[df_numeric[col].isna()]:
+            start = max(0, idx - window)
+            end = min(len(df_numeric), idx + window + 1)
+            
+            neighbors = df_numeric[col].iloc[start:end].dropna()
+            
+            if len(neighbors) > 0:
+                df_numeric.at[idx, col] = neighbors.mean()
+            else:
+                df_numeric.at[idx, col] = col_mean
+                
+    return df_numeric
+
+def create_sliding_windows(data, seq_len):
+    X, y = [], []
+    for i in range(len(data) - seq_len):
+        X.append(data[i:i+seq_len])
+        y.append(data[i+seq_len])
+    return np.array(X), np.array(y)
+
+def forecast_data(df: pd.DataFrame, predict_all_columns=True, forecast_years=5, seq_len=3, epochs=300, lr=0.01):
+    df_numeric = df.select_dtypes(include=[np.number])
+    if df_numeric.shape[0] <= seq_len:
+        raise ValueError(f"Need more than {seq_len} rows for the sliding window approach.")
+    
+    results = pd.DataFrame(index=range(forecast_years), columns=df_numeric.columns)
+    scaler = MinMaxScaler(feature_range=(0, 1))  # strictly non-negative scaling
+    scaled_data = scaler.fit_transform(df_numeric.values)
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    if predict_all_columns:
+        X, y = create_sliding_windows(scaled_data, seq_len)
+        X_tensor = torch.tensor(X, dtype=torch.float32).to(device)
+        y_tensor = torch.tensor(y, dtype=torch.float32).to(device)
+        
+        model = GRUPredictor(input_size=df_numeric.shape[1]).to(device)
+        criterion = nn.MSELoss()
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        
+        for epoch in range(epochs):
+            optimizer.zero_grad()
+            output = model(X_tensor)
+            loss = criterion(output, y_tensor)
+            loss.backward()
+            optimizer.step()
+        
+        last_input = torch.tensor(scaled_data[-seq_len:], dtype=torch.float32).unsqueeze(0).to(device)
+        for year in range(forecast_years):
+            with torch.no_grad():
+                next_pred = model(last_input)
+            results.iloc[year] = scaler.inverse_transform(next_pred.cpu().numpy())
+            last_input = torch.cat([last_input[:, 1:, :], next_pred.unsqueeze(1)], dim=1)
+    
+    else:
+        for i, col in enumerate(df_numeric.columns):
+            col_data = scaled_data[:, i:i+1]
+            X, y = create_sliding_windows(col_data, seq_len)
+            X_tensor = torch.tensor(X, dtype=torch.float32).to(device)
+            y_tensor = torch.tensor(y, dtype=torch.float32).to(device)
+            
+            model = GRUPredictor(input_size=1).to(device)
+            criterion = nn.MSELoss()
+            optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+            
+            for epoch in range(epochs):
+                optimizer.zero_grad()
+                output = model(X_tensor)
+                loss = criterion(output, y_tensor)
+                loss.backward()
+                optimizer.step()
+            
+            last_input = torch.tensor(col_data[-seq_len:], dtype=torch.float32).unsqueeze(0).to(device)
+            for year in range(forecast_years):
+                with torch.no_grad():
+                    next_pred = model(last_input)
+                full_pred = np.zeros((1, df_numeric.shape[1]))
+                full_pred[0, i] = next_pred.cpu().numpy()[0, 0]
+                results.iloc[year, i] = scaler.inverse_transform(full_pred)[0, i]
+                last_input = torch.cat([last_input[:, 1:, :], next_pred.unsqueeze(1)], dim=1)
+    
+    results = results.to_csv(index=False)
+    return results

@@ -21,7 +21,7 @@ from helpers import (
     generate_enhanced_contextual_explanation, add_enhanced_message_to_session,
     get_enhanced_chat_context, prepare_response_data, create_response_metadata,
     format_csv_data, get_chat_history_for_response, validate_session_id,
-    create_error_response, decide_graph_from_string, clean_md
+    create_error_response, decide_graph_from_string, clean_md, forecast_data
 )
 
 logger = logging.getLogger(__name__)
@@ -455,3 +455,10 @@ English text to translate: {base_response}"""
     async def decide(self, csv_data: CSVData):
         srno, data = decide_graph_from_string(csv_data.csv_content)
         return {"srno": srno, "jsonData": data}
+
+    async def forecast(self, csv_data: CSVData, all_col: Boolean, yrs: Number):
+        df = pd.read_csv(StringIO(csv_data.csv_content))
+        forecast_csv = forecast_data(df, all_col, yrs)
+        #forecast_json = pd.read_csv(StringIO(forecast_csv)).to_dict(orient="records")
+
+        return {"csvData": forecast_csv}
