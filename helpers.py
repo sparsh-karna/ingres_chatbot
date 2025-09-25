@@ -433,7 +433,7 @@ def decide_graph_from_string(csv_content: str, user_query: str = "", response_te
         dict: JSON with number_of_appropriate_graphs and graph_indices
     """
     import google.generativeai as genai
-    genai.configure(api_key="AIzaSyCzf-iCpO6ZV9G48b5fLB4XyfvhL4ReP3U")
+    genai.configure(api_key="AIzaSyDql8hpgkDIVCT38ry8lGXp1fdxd3FwkRs")
     
     # Read CSV string using StringIO
     f = io.StringIO(csv_content)
@@ -614,13 +614,70 @@ Return ONLY valid JSON with no additional text. For each recommended graph, prov
         "color_key": "<column name for colors/grouping if needed>"
       }},
       "chart_specific": {{
-        // For Bar Charts (0,1): activeIndex, stackId, colors
-        // For Pie Chart (2): total calculation method, segment colors
-        // For Line Charts (3,4): dot colors, line styles, trend indicators
+        "code_snippets": "Use these React component patterns for implementation",
+        "bar_chart_active": "BarChart with Bar dataKey=value, activeIndex for highlighting, Rectangle activeBar component",
+        "bar_chart_stacked": "BarChart with multiple Bar components, stackId=a, ChartLegend for series identification", 
+        "pie_chart_donut": "PieChart with Pie innerRadius=60, Label component for center text display",
+        "line_chart_dots": "LineChart with Line type=natural, custom Dot components with individual colors",
+        "line_chart_multiple": "LineChart with multiple Line components, different stroke colors per series"
       }}
     }}
   ]
 }}
+
+REACT COMPONENT CODE REFERENCES:
+For implementation guidance, use these component patterns:
+
+BAR CHART ACTIVE (Index 0):
+<ChartContainer config={{chartConfig}}>
+  <BarChart accessibilityLayer data={{chartData}}>
+    <CartesianGrid vertical={{false}} />
+    <XAxis dataKey="category" tickLine={{false}} axisLine={{false}} />
+    <ChartTooltip cursor={{false}} content={{<ChartTooltipContent hideLabel />}} />
+    <Bar dataKey="value" strokeWidth={{2}} radius={{8}} activeIndex={{2}} />
+  </BarChart>
+</ChartContainer>
+
+BAR CHART STACKED (Index 1):
+<ChartContainer config={{chartConfig}}>
+  <BarChart accessibilityLayer data={{chartData}}>
+    <CartesianGrid vertical={{false}} />
+    <XAxis dataKey="category" />
+    <ChartLegend content={{<ChartLegendContent />}} />
+    <Bar dataKey="series1" stackId="a" fill="var(--color-series1)" />
+    <Bar dataKey="series2" stackId="a" fill="var(--color-series2)" />
+  </BarChart>
+</ChartContainer>
+
+PIE CHART DONUT (Index 2):
+<ChartContainer config={{chartConfig}} className="mx-auto aspect-square max-h-[250px]">
+  <PieChart>
+    <ChartTooltip cursor={{false}} content={{<ChartTooltipContent hideLabel />}} />
+    <Pie data={{chartData}} dataKey="value" nameKey="category" innerRadius={{60}} strokeWidth={{2}}>
+      <Label content={{centerLabelFunction}} />
+    </Pie>
+  </PieChart>
+</ChartContainer>
+
+LINE CHART DOTS (Index 3):
+<ChartContainer config={{chartConfig}}>
+  <LineChart accessibilityLayer data={{chartData}} margin={{{{top: 24, left: 24, right: 24}}}}>
+    <CartesianGrid vertical={{false}} />
+    <ChartTooltip cursor={{false}} />
+    <Line dataKey="value" type="natural" strokeWidth={{2}} dot={{customDotFunction}} />
+  </LineChart>
+</ChartContainer>
+
+LINE CHART MULTIPLE (Index 4):
+<ChartContainer config={{chartConfig}}>
+  <LineChart accessibilityLayer data={{chartData}}>
+    <CartesianGrid vertical={{false}} />
+    <XAxis dataKey="category" />
+    <ChartTooltip cursor={{false}} />
+    <Line dataKey="series1" type="monotone" stroke="var(--color-series1)" strokeWidth={{2}} dot={{false}} />
+    <Line dataKey="series2" type="monotone" stroke="var(--color-series2)" strokeWidth={{2}} dot={{false}} />
+  </LineChart>
+</ChartContainer>
 
 PARAMETER GENERATION GUIDELINES:
 1. **Titles**: Create descriptive, context-aware titles based on user query and data
@@ -638,7 +695,7 @@ CONSTRAINTS:
 """
 
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash-latest")
+        model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content(prompt)
         
         response_text = response.text.strip()
