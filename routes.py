@@ -527,3 +527,15 @@ class Routes:
             response_text=csv_data.response_text or ""
         )
         return result
+    
+    async def forecast(self, csv_data: CSVForecastData, all_col: bool = True, yrs: int = 5):
+        try:
+            forecast_result = forecast_data(
+                csv_content=csv_data.csv_content,
+                all_columns=all_col,
+                years=yrs
+            )
+            return forecast_result
+        except Exception as e:
+            logger.error(f"Error in forecasting: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
