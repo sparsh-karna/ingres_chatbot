@@ -4,6 +4,7 @@ Handles speech-to-text, text-to-text translation, and text-to-speech conversion
 """
 
 import os
+import html
 import base64
 import tempfile
 import logging
@@ -11,6 +12,7 @@ from typing import Dict, Optional, Tuple, Union
 from io import BytesIO
 from sarvamai import SarvamAI
 from dotenv import load_dotenv
+import requests
 
 # Load environment variables
 load_dotenv()
@@ -24,7 +26,9 @@ class SpeechLanguageService:
     def __init__(self):
         """Initialize the speech and language service"""
         self.api_key = os.getenv("SARVAM_API_KEY", "")
+        self.google_translation_api_key = os.getenv("GOOGLE_TRANSLATION_API", "")
         logger.info(f"Loading SARVAM_API_KEY: {'Found' if self.api_key else 'Not found'}")
+        logger.info(f"Loading GOOGLE_TRANSLATION_API: {'Found' if self.google_translation_api_key else 'Not found'}")
         
         if not self.api_key:
             logger.warning("SARVAM_API_KEY not found. Speech functionality will be disabled.")
@@ -229,9 +233,9 @@ class SpeechLanguageService:
             return {"transcript": None, "language_code": None, "error": str(e)}
     
     def translate_text(self, text: str, source_language: str, target_language: str = "en-IN") -> Dict[str, Optional[str]]:
-        """Translate text from source language to target language for TTS only"""
-        if not self.client:
-            return {"translated_text": text, "error": "Translation service not available"}
+        """Translate text from source language to target language for TTS only using Google Cloud Translation API"""
+        if not self.google_translation_api_key:
+            return {"translated_text": text, "error": "Google Translation API key not available"}
         
         # If same language, no translation needed
         if source_language == target_language:
@@ -280,36 +284,49 @@ class SpeechLanguageService:
             return {"translated_text": text, "error": str(e)}
     
     def _translate_single_text(self, text: str, source_language: str, target_language: str) -> Dict[str, Optional[str]]:
-        """Translate a single text chunk"""
+        """Translate a single text chunk via Google Cloud Translation v2 REST API."""
         try:
-            logger.info(f"Translating text: '{text[:50]}...' from {source_language} to {target_language}")
-            response = self.client.text.translate(
-                input=text,
-                source_language_code=source_language,
-                target_language_code=target_language,
-                model="mayura:v1",
-                speaker_gender="Male"
+            # Convert codes like 'hi-IN' -> 'hi' for Google API while keeping callers unchanged
+            source_short = source_language.split('-')[0] if source_language else None
+            target_short = target_language.split('-')[0] if target_language else None
+
+            logger.info(
+                f"Translating text via Google API: '{text[:50]}...' from {source_language} to {target_language}"
             )
-            
-            # Extract translated text from response
-            translated_text = getattr(response, 'translated_text', None)
-            if not translated_text and isinstance(response, dict):
-                translated_text = response.get('translated_text')
-            
-            logger.info(f"Translation API response: {response}")
-            
+
+            url = "https://translation.googleapis.com/language/translate/v2"
+            params = {
+                "key": self.google_translation_api_key
+            }
+            data = {
+                "q": text,
+                "format": "text",
+                **({"source": source_short} if source_short else {}),
+                **({"target": target_short} if target_short else {}),
+            }
+
+            resp = requests.post(url, params=params, data=data, timeout=20)
+            resp.raise_for_status()
+            payload = resp.json()
+
+            translations = (
+                payload.get("data", {}).get("translations", []) if isinstance(payload, dict) else []
+            )
+            translated_text = translations[0].get("translatedText") if translations else None
+
             if translated_text:
-                logger.info(f"Text translation successful: {source_language} -> {target_language}")
-                logger.info(f"Translated text: '{translated_text[:100]}...'")
+                # Google may return HTML entities; unescape to plain text
+                translated_text = html.unescape(translated_text)
+                logger.info(
+                    f"Google translation successful: {source_language} -> {target_language}"
+                )
                 return {"translated_text": translated_text, "error": None}
             else:
-                logger.error(f"No translated text found in response: {response}")
-                return {"translated_text": text, "error": "No translation found in response"}
-                
+                logger.error(f"No translated text found in Google response: {payload}")
+                return {"translated_text": text, "error": "No translation found in Google response"}
+
         except Exception as e:
-            logger.error(f"Error in text translation: {e}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.error(f"Error in Google text translation: {e}")
             return {"translated_text": text, "error": str(e)}
 
     
