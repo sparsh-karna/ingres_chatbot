@@ -6,9 +6,9 @@ RESTful API for querying groundwater resource data
 import os
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 
@@ -22,6 +22,7 @@ from models import (
     HealthResponse, CSVData
 )
 from routes import Routes
+from helpers import clean_md
 
 # Load environment variables
 load_dotenv()
@@ -179,6 +180,59 @@ async def serve_voice_frontend():
 @app.get("/forecast", response_class=CSVData)
 async def forecast(self, csv_data: CSVData, all_col: Boolean, yrs: Number):
     return await route_handlers.forecast(csv_data, all_col, yrs)
+
+
+# --- Twilio SMS webhook ---
+def _xml_escape(text: str) -> str:
+    try:
+        return (
+            text.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace('"', "&quot;")
+                .replace("'", "&apos;")
+        )
+    except Exception:
+        return text
+
+
+@app.post("/twilio/sms")
+async def twilio_sms(From: str = Form(default=""), To: str = Form(default=""), Body: str = Form(default=""), MessageSid: str = Form(default="")):
+    """Twilio SMS/WhatsApp webhook: returns plain text response only via TwiML."""
+    try:
+        from models import ChatRequest  # local import to avoid circulars at import time
+        
+        # Log the incoming request for debugging
+        logger.info(f"Twilio webhook received - From: {From}, To: {To}, Body: {Body[:100]}...")
+        
+        chat_req = ChatRequest(
+            question=Body or "",
+            input_type="text",
+            include_visualization=False,
+        )
+        chat_res = await route_handlers.process_chat(chat_req)
+
+        if chat_res.success and chat_res.response:
+            message_text = clean_md(chat_res.response)
+        else:
+            message_text = chat_res.error or "Sorry, I couldn't process that request."
+
+        message_text = message_text.strip()
+        if len(message_text) > 1600:
+            message_text = message_text[:1597] + "..."
+
+        # For WhatsApp, we need to specify the To field in the Message tag
+        if From.startswith("whatsapp:"):
+            twiml = f"<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Message to=\"{From}\">{_xml_escape(message_text)}</Message></Response>"
+        else:
+            twiml = f"<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Message>{_xml_escape(message_text)}</Message></Response>"
+        
+        logger.info(f"Returning TwiML response: {twiml[:200]}...")
+        return Response(content=twiml, media_type="text/xml")
+    except Exception as e:
+        logger.error(f"Error in Twilio webhook: {e}")
+        twiml = f"<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Message>Sorry, an error occurred: {_xml_escape(str(e))}</Message></Response>"
+        return Response(content=twiml, media_type="text/xml")
 
 
 if __name__ == "__main__":
