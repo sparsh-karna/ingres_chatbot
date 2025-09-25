@@ -193,10 +193,14 @@ def _xml_escape(text: str) -> str:
 
 
 @app.post("/twilio/sms")
-async def twilio_sms(From: str = Form(default=""), To: str = Form(default=""), Body: str = Form(default="")):
-    """Twilio SMS webhook: returns plain text response only via TwiML."""
+async def twilio_sms(From: str = Form(default=""), To: str = Form(default=""), Body: str = Form(default=""), MessageSid: str = Form(default="")):
+    """Twilio SMS/WhatsApp webhook: returns plain text response only via TwiML."""
     try:
         from models import ChatRequest  # local import to avoid circulars at import time
+        
+        # Log the incoming request for debugging
+        logger.info(f"Twilio webhook received - From: {From}, To: {To}, Body: {Body[:100]}...")
+        
         chat_req = ChatRequest(
             question=Body or "",
             input_type="text",
@@ -213,11 +217,18 @@ async def twilio_sms(From: str = Form(default=""), To: str = Form(default=""), B
         if len(message_text) > 1600:
             message_text = message_text[:1597] + "..."
 
-        twiml = f"<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Message>{_xml_escape(message_text)}</Message></Response>"
-        return Response(content=twiml, media_type="application/xml")
+        # For WhatsApp, we need to specify the To field in the Message tag
+        if From.startswith("whatsapp:"):
+            twiml = f"<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Message to=\"{From}\">{_xml_escape(message_text)}</Message></Response>"
+        else:
+            twiml = f"<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Message>{_xml_escape(message_text)}</Message></Response>"
+        
+        logger.info(f"Returning TwiML response: {twiml[:200]}...")
+        return Response(content=twiml, media_type="text/xml")
     except Exception as e:
+        logger.error(f"Error in Twilio webhook: {e}")
         twiml = f"<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Message>Sorry, an error occurred: {_xml_escape(str(e))}</Message></Response>"
-        return Response(content=twiml, media_type="application/xml")
+        return Response(content=twiml, media_type="text/xml")
 
 
 if __name__ == "__main__":
