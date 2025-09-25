@@ -56,6 +56,10 @@ class SpeechLanguageService:
         """Check if translation service is available"""
         return bool(self.google_translation_api_key)
     
+    def is_azure_tts_available(self) -> bool:
+        """Check if Azure text-to-speech service is available"""
+        return bool(self.azure_speech_key)
+    
     def detect_language_from_text(self, text: str) -> Optional[str]:
         """Detect language from text input"""
         if not self.client:

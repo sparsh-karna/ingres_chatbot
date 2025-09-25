@@ -162,35 +162,39 @@ class Routes:
                         raise Exception(f"Failed to decode audio data: {decode_error}")
                     
                     if voice_result.get("transcript"):
-                        question_text = voice_result["transcript"]
-                        original_question_text = question_text  # Keep original for LLM response
+                        question_text = voice_result["transcript"]  # This is the English transcript
                         detected_language = voice_result.get("language_code", "en-IN")
                         logger.info(f"Voice transcription successful: {question_text} (Language: {detected_language})")
                         
-                        # If detected language is not English, translate to English for SQL processing only
+                        # For voice input: If detected language is not English, we need to:
+                        # 1. Translate English transcript TO the detected language for LLM (so it responds in user's language)
+                        # 2. Keep English transcript for SQL processing
                         if detected_language != "en-IN" and self.speech_service.is_translation_available():
-                            logger.info(f"Translating question from {detected_language} to English for SQL processing")
+                            logger.info(f"Translating English transcript TO {detected_language} for LLM response")
                             
                             try:
+                                # Translate English transcript to user's language for LLM
                                 translation_result = self.speech_service.translate_text(
                                     text=question_text,
-                                    source_language=detected_language,
-                                    target_language="en-IN"
+                                    source_language="en-IN",
+                                    target_language=detected_language
                                 )
                                 
                                 if translation_result.get("translated_text") and not translation_result.get("error"):
-                                    translated_question = translation_result["translated_text"]
-                                    logger.info(f"Translation successful for SQL processing: '{question_text}' -> '{translated_question}'")
-                                    question_text = translated_question  # Use translated question only for SQL processing
+                                    translated_to_user_language = translation_result["translated_text"]
+                                    logger.info(f"Translation successful for LLM: '{question_text}' -> '{translated_to_user_language}'")
+                                    original_question_text = translated_to_user_language  # Use translated question for LLM response
                                 else:
-                                    logger.error(f"Translation failed: {translation_result.get('error')}, using original question")
-                                    # Keep original question_text if translation fails
+                                    logger.error(f"Translation to user language failed: {translation_result.get('error')}, using English")
+                                    original_question_text = question_text  # Fallback to English
                             except Exception as translation_error:
-                                logger.error(f"Translation error: {translation_error}, using original question")
-                                # Keep original question_text if translation fails
-                        elif detected_language != "en-IN":
-                            logger.warning("Translation service not available for voice input, using original transcription")
-                            # Keep original question_text if translation service not available
+                                logger.error(f"Translation to user language error: {translation_error}, using English")
+                                original_question_text = question_text  # Fallback to English
+                        else:
+                            # English input or no translation service
+                            original_question_text = question_text
+                        
+                        # question_text stays as English transcript for SQL processing
                         
                     else:
                         error_msg = voice_result.get("error", "Unknown transcription error")
@@ -276,20 +280,24 @@ class Routes:
             
             # Generate audio response only for voice input
             if request.input_type == "voice" and detected_language and self.speech_service and self.speech_service.is_available():
-                # Generate audio response in the detected language using the translated text
-                cleaned_translated_text = clean_md(translated_response)
-                audio_result = self.speech_service.text_to_speech(
-                    cleaned_translated_text, 
-                    target_language=detected_language
-                )
-                
-                if audio_result.get("audio_data"):
-                    # Convert audio bytes to base64 string
-                    import base64
-                    audio_response = base64.b64encode(audio_result["audio_data"]).decode('utf-8')
-                    logger.info("Audio response generated successfully")
+                # Check if Azure TTS is available before attempting audio generation
+                if self.speech_service.is_azure_tts_available():
+                    # Generate audio response in the detected language using the translated text
+                    cleaned_translated_text = clean_md(translated_response)
+                    audio_result = self.speech_service.text_to_speech(
+                        cleaned_translated_text, 
+                        target_language=detected_language
+                    )
+                    
+                    if audio_result.get("audio_data"):
+                        # Convert audio bytes to base64 string
+                        import base64
+                        audio_response = base64.b64encode(audio_result["audio_data"]).decode('utf-8')
+                        logger.info("Audio response generated successfully")
+                    else:
+                        logger.error(f"Audio generation failed: {audio_result.get('error', 'Unknown error')}")
                 else:
-                    logger.error(f"Audio generation failed: {audio_result.get('error', 'Unknown error')}")
+                    logger.warning("Azure TTS not available - AZURE_API_KEY not configured. Skipping audio generation.")
             
             # Add messages to session
             add_enhanced_message_to_session(
