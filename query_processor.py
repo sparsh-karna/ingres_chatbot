@@ -743,7 +743,7 @@ Response:
             logger.error(f"Error generating natural response: {e}")
             return f"I found the data you requested, but encountered an error generating the response. Here's a summary: {results_summary}"
     
-    def process_user_query(self, user_question: str, include_visualization: bool = True) -> Dict:
+    def process_user_query(self, user_question: str, include_visualization: bool = True, original_question: str = None) -> Dict:
         """Main method to process user query end-to-end"""
         result = {
             'success': False,
@@ -755,6 +755,9 @@ Response:
         }
         try:
             logger.info(f"Processing user question: {user_question}")
+            # Use original question if provided, otherwise use the user_question
+            question_for_response = original_question if original_question else user_question
+            
             sql_query = self.generate_sql_query(user_question)
             if not sql_query:
                 result['error'] = "Failed to generate SQL query from your question"
@@ -769,8 +772,10 @@ Response:
                 return result
             result['data'] = data
             if include_visualization:
-                result['visualization'] = self.generate_visualization(user_question, data)
-            natural_response = self.generate_natural_response(user_question, data, sql_query)
+                # Use original question for visualization if available
+                result['visualization'] = self.generate_visualization(question_for_response, data)
+            # Use original question for natural response so LLM responds in the same language
+            natural_response = self.generate_natural_response(question_for_response, data, sql_query)
             result['response'] = natural_response
             result['success'] = True
             logger.info("Query processed successfully")
