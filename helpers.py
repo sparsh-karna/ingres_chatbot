@@ -416,53 +416,257 @@ def create_error_response(error_message: str, session_id: str = None) -> Dict[st
         "chat_history": []
     }
 
-def decide_graph_from_string(csv_content: str):
+def decide_graph_from_string(csv_content: str, user_query: str = "", response_text: str = ""):
+    """
+    Analyze CSV data and recommend appropriate chart types based on user query and response context.
+    
+    Args:
+        csv_content: CSV data as string
+        user_query: User's original question
+        response_text: AI generated response text
+    
+    Returns:
+        dict: JSON with number_of_appropriate_graphs and graph_indices
+    """
+    import google.generativeai as genai
     genai.configure(api_key="AIzaSyCzf-iCpO6ZV9G48b5fLB4XyfvhL4ReP3U")
+    
     # Read CSV string using StringIO
     f = io.StringIO(csv_content)
     reader = csv.DictReader(f)
     data = [row for row in reader]
 
     if not data:
-        return None, []
+        return {"number_of_appropriate_graphs": 0, "graph_indices": []}
 
-    head_sample = data[:20]
+    head_sample = data[:10]
+    total_entries = len(data)
+    total_columns = len(data[0].keys())
+    
     schema = [
-        {"name": key, "sampleValues": list({row[key] for row in data if row[key]})[:5]}
+        {"name": key, "type": "numeric" if any(str(row[key]).replace('.', '').replace('-', '').isdigit() for row in data[:5] if row[key]) else "categorical", 
+         "sample_values": list({row[key] for row in data if row[key]})[:3]}
         for key in data[0].keys()
     ]
+    
+    dataset_info = {
+        "total_entries": total_entries,
+        "total_columns": total_columns,
+        "numeric_columns": sum(1 for col in schema if col['type'] == 'numeric'),
+        "categorical_columns": sum(1 for col in schema if col['type'] == 'categorical'),
+        "data_size": "small" if total_entries < 50 else "medium" if total_entries < 500 else "large"
+    }
 
-    viz_options = [
-        {"srno": 3, "name": "Bar 3", "description": "This chart is a powerful tool for comparing multiple data series across a set of categories..."},
-        {"srno": 6, "name": "Bar 6", "description": "A bar chart. Each bar represents a category, and its length or height corresponds..."},
-        {"srno": 1, "name": "Composition 1", "description": "This is a multi-line chart, which plots multiple data series on a single graph..."},
-        {"srno": 7, "name": "Composition 7", "description": "A composition chart, used to display continuous data over a specified period..."},
-        {"srno": 4, "name": "Donut 4", "description": "A donut chart is a variation of a pie chart with a circular hole in the center..."},
+    # Complete chart options with code requirements
+    chart_options = [
+        {
+            "index": 0,
+            "name": "Bar Chart - Active",
+            "description": "Single bar chart with active/highlighted bars for categorical comparisons",
+            "code_structure": {
+                "data_format": "[{category: 'chrome', value: 187, fill: 'var(--color-chrome)'}, ...]",
+                "required_fields": ["category (string)", "value (numeric)", "fill (optional)"],
+                "recharts_config": "BarChart with Bar dataKey='value', activeIndex for highlighting",
+                "card_elements": "CardTitle, CardDescription, CardFooter with trends"
+            },
+            "data_requirements": {
+                "min_columns": 2,
+                "categorical_cols": 1,
+                "numeric_cols": 1,
+                "ideal_rows": "5-20",
+                "example": "States by groundwater level, Districts by rainfall"
+            }
+        },
+        {
+            "index": 1,
+            "name": "Bar Chart - Stacked",
+            "description": "Stacked bar chart showing composition across categories with multiple data series",
+            "code_structure": {
+                "data_format": "[{category: 'January', series1: 186, series2: 80}, ...]",
+                "required_fields": ["category (string)", "2+ numeric series"],
+                "recharts_config": "BarChart with multiple Bar components, stackId='a', ChartLegend",
+                "card_elements": "CardTitle, CardDescription, Legend, CardFooter"
+            },
+            "data_requirements": {
+                "min_columns": 3,
+                "categorical_cols": 1,
+                "numeric_cols": "2+",
+                "ideal_rows": "3-15",
+                "example": "Years by (rainfall + extraction), States by (recharge + usage)"
+            }
+        },
+        {
+            "index": 2,
+            "name": "Pie Chart - Donut",
+            "description": "Donut pie chart with center text showing proportional data",
+            "code_structure": {
+                "data_format": "[{category: 'chrome', value: 275, fill: 'var(--color-chrome)'}, ...]",
+                "required_fields": ["category (string)", "value (numeric)", "fill (required)"],
+                "recharts_config": "PieChart with Pie, innerRadius=60, Label in center",
+                "card_elements": "CardTitle, CardDescription, Center total, CardFooter"
+            },
+            "data_requirements": {
+                "min_columns": 2,
+                "categorical_cols": 1,
+                "numeric_cols": 1,
+                "ideal_rows": "3-8 (max for readability)",
+                "example": "Groundwater stages distribution, State-wise water usage"
+            }
+        },
+        {
+            "index": 3,
+            "name": "Line Chart - Dots",
+            "description": "Line chart with colored dots for trend analysis",
+            "code_structure": {
+                "data_format": "[{sequence: 'chrome', value: 275, fill: 'var(--color-chrome)'}, ...]",
+                "required_fields": ["sequence (string/ordinal)", "value (numeric)", "fill (per dot)"],
+                "recharts_config": "LineChart with Line, custom Dot components with individual colors",
+                "card_elements": "CardTitle, CardDescription, CardFooter with insights"
+            },
+            "data_requirements": {
+                "min_columns": 2,
+                "categorical_cols": "1 (ordinal/sequential)",
+                "numeric_cols": 1,
+                "ideal_rows": "5-30",
+                "example": "Monthly trends, Year-over-year changes"
+            }
+        },
+        {
+            "index": 4,
+            "name": "Line Chart - Interactive",
+            "description": "Interactive time-series line chart with date axis and multiple metrics",
+            "code_structure": {
+                "data_format": "[{date: '2024-04-01', metric1: 222, metric2: 150}, ...]",
+                "required_fields": ["date (YYYY-MM-DD)", "1+ numeric metrics"],
+                "recharts_config": "LineChart with XAxis dateKey, interactive buttons, activeDot",
+                "card_elements": "CardHeader with metric toggles, interactive controls, time formatting"
+            },
+            "data_requirements": {
+                "min_columns": 2,
+                "date_cols": 1,
+                "numeric_cols": "1+",
+                "ideal_rows": "20+ (time series)",
+                "example": "Daily/Monthly groundwater levels, Multi-year trends"
+            }
+        },
+        {
+            "index": 5,
+            "name": "Line Chart - Multiple",
+            "description": "Multiple line series comparison over time periods",
+            "code_structure": {
+                "data_format": "[{period: 'January', series1: 186, series2: 80}, ...]",
+                "required_fields": ["period (string)", "2+ numeric series for lines"],
+                "recharts_config": "LineChart with multiple Line components, different colors",
+                "card_elements": "CardTitle, CardDescription, Multiple lines, CardFooter with comparison"
+            },
+            "data_requirements": {
+                "min_columns": 3,
+                "categorical_cols": "1 (time periods)",
+                "numeric_cols": "2+",
+                "ideal_rows": "6-24",
+                "example": "Compare rainfall vs extraction by month, Multi-state trends"
+            }
+        }
     ]
 
     prompt = f"""
-You are an AI agent that chooses the best visualization type for a dataset.
-Return ONLY the srno (number) of the best chart.
+You are an expert data visualization analyst and React developer. Analyze the provided data and determine the most appropriate chart types based on technical feasibility and visualization best practices.
 
-Schema:
+USER QUERY: {user_query}
+AI RESPONSE: {response_text}
+
+DATASET ANALYSIS:
+{json.dumps(dataset_info, indent=2)}
+
+COLUMN SCHEMA:
 {json.dumps(schema, indent=2)}
 
-Sample rows:
+SAMPLE DATA STRUCTURE:
 {json.dumps(head_sample, indent=2)}
 
-Visualization options:
-{json.dumps(viz_options, indent=2)}
+AVAILABLE CHART COMPONENTS WITH CODE REQUIREMENTS:
+{json.dumps(chart_options, indent=2)}
+
+TECHNICAL ANALYSIS REQUIRED:
+1. **Data Structure Compatibility**: Check if current data can be transformed to required format
+2. **Column Type Verification**: Ensure sufficient categorical/numeric/date columns exist
+3. **Data Volume Appropriateness**: Match data size to chart type capabilities
+4. **User Intent Alignment**: Select charts that answer the user's question effectively
+5. **Visualization Clarity**: Avoid charts that would be cluttered or unreadable
+
+CURRENT DATA CAPABILITIES:
+- Total Entries: {total_entries}
+- Total Columns: {total_columns}
+- Categorical Columns: {dataset_info['categorical_columns']} 
+- Numeric Columns: {dataset_info['numeric_columns']}
+- Data Size Category: {dataset_info['data_size']}
+- Available Columns: {[f"{col['name']} ({col['type']})" for col in schema]}
+
+SELECTION LOGIC:
+- Index 0: Requires 1 categorical + 1 numeric (good for: rankings, comparisons)
+- Index 1: Requires 1 categorical + 2+ numeric (good for: composition, multi-metric)
+- Index 2: Requires 1 categorical + 1 numeric, max 8 categories (good for: proportions)
+- Index 3: Requires sequential + 1 numeric (good for: trends, patterns)
+- Index 4: Requires date column + numeric (good for: time series)
+- Index 5: Requires sequential + 2+ numeric (good for: trend comparison)
+
+RESPONSE REQUIREMENTS:
+Return ONLY valid JSON with no additional text:
+{{
+  "number_of_appropriate_graphs": <integer>,
+  "graph_indices": [<array of valid indices 0-5>]
+}}
+
+CONSTRAINTS:
+- Only suggest charts where data requirements are technically feasible
+- Prioritize charts that effectively communicate the user's query intent
+- Consider data volume for optimal user experience
+- Maximum 3 charts to avoid overwhelming the user
+- Minimum 1 chart if any are feasible
 """
 
-    model = genai.GenerativeModel("gemini-1.5-flash-latest")
-    response = model.generate_content(prompt).text
-
     try:
-        srno = int(response.strip())
-    except ValueError:
-        srno = None
-
-    return srno, data
+        model = genai.GenerativeModel("gemini-1.5-flash-latest")
+        response = model.generate_content(prompt)
+        
+        response_text = response.text.strip()
+        if response_text.startswith('```json'):
+            response_text = response_text.replace('```json', '').replace('```', '').strip()
+        
+        result = json.loads(response_text)
+        
+        # Validate and sanitize response
+        if not isinstance(result.get('number_of_appropriate_graphs'), int):
+            raise ValueError("Invalid number_of_appropriate_graphs")
+        if not isinstance(result.get('graph_indices'), list):
+            raise ValueError("Invalid graph_indices")
+            
+        valid_indices = [idx for idx in result['graph_indices'] if isinstance(idx, int) and 0 <= idx <= 5]
+        result['graph_indices'] = valid_indices
+        result['number_of_appropriate_graphs'] = len(valid_indices)
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error in decide_graph_from_string: {e}")
+        # Enhanced fallback logic
+        numeric_cols = dataset_info['numeric_columns']
+        categorical_cols = dataset_info['categorical_columns']
+        data_size = dataset_info['data_size']
+        
+        # Smart fallback based on data characteristics
+        if numeric_cols >= 2 and categorical_cols >= 1:
+            if data_size == "small":
+                return {"number_of_appropriate_graphs": 2, "graph_indices": [1, 2]}  # Stacked + Donut
+            else:
+                return {"number_of_appropriate_graphs": 2, "graph_indices": [1, 5]}  # Stacked + Multiple lines
+        elif numeric_cols >= 1 and categorical_cols >= 1:
+            if data_size == "small" and categorical_cols <= 8:
+                return {"number_of_appropriate_graphs": 2, "graph_indices": [0, 2]}  # Active bar + Donut
+            else:
+                return {"number_of_appropriate_graphs": 1, "graph_indices": [0]}  # Active bar only
+        else:
+            return {"number_of_appropriate_graphs": 1, "graph_indices": [0]}  # Default to basic bar chart
 
 def clean_md(text: str) -> str:
     # Remove headings (#), emphasis (*, _, **, __), inline code (`), blockquotes (>), lists (-, +)
