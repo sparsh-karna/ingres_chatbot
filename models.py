@@ -118,3 +118,7 @@ class CSVForecastDataInput(BaseModel):
     csv_content: str
     all_col: bool = True
     yrs: int = 5
+
+class EDADataInput(BaseModel):
+    csv_content: str
+    user_query: str

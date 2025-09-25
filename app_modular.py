@@ -19,7 +19,7 @@ from speech_service import SpeechLanguageService
 from models import (
     QueryRequest, ChatRequest, QueryResponse, ChatResponse,
     SessionResponse, SessionsListResponse, ChatHistoryResponse,
-    HealthResponse, CSVData, CSVForecastDataInput
+    HealthResponse, CSVData, CSVForecastDataInput, EDADataInput
 )
 from routes import Routes
 from helpers import clean_md
@@ -180,6 +180,10 @@ async def serve_voice_frontend():
 @app.post("/forecast")
 async def forecast(csv_data: CSVForecastDataInput):
     return await route_handlers.forecast(csv_data)
+
+@app.post("/eda")
+async def eda(eda_input: EDADataInput):
+    return await route_handlers.eda(eda_input)
 
 
 # --- Twilio SMS webhook ---
