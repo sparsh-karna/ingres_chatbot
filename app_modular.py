@@ -19,7 +19,8 @@ from speech_service import SpeechLanguageService
 from models import (
     QueryRequest, ChatRequest, QueryResponse, ChatResponse,
     SessionResponse, SessionsListResponse, ChatHistoryResponse,
-    HealthResponse, CSVData, CSVForecastDataInput, EDADataInput
+    HealthResponse, CSVData, CSVForecastDataInput, EDADataInput,
+    GeneralChatRequest, GeneralChatResponse
 )
 from routes import Routes
 from helpers import clean_md
@@ -136,6 +137,12 @@ async def process_query(request: QueryRequest):
 async def process_chat(request: ChatRequest):
     """Process chat message with context awareness"""
     return await route_handlers.process_chat(request)
+
+
+@app.post("/general-chat", response_model=GeneralChatResponse)
+async def process_general_chat(request: GeneralChatRequest):
+    """Process general questions about the groundwater dataset using LLM"""
+    return await route_handlers.process_general_chat(request)
 
 
 @app.post("/chat/new-session", response_model=SessionResponse)

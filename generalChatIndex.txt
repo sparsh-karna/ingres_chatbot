@@ -1,0 +1,161 @@
+# Indian Groundwater Resource Assessment Dataset
+
+## Dataset Overview
+This dataset contains comprehensive groundwater resource assessment data for India, covering multiple years and providing detailed information about groundwater recharge, extraction, availability, and quality across different states and districts.
+
+## Temporal Coverage
+Data available for years: 2012-2013, 2016-2017, 2019-2020, 2021-2022, 2022-2023, 2023-2024, 2024-2025
+Total years covered: 7
+
+## Geographical Coverage
+Total states covered: 37
+States include: ANDAMAN AND NICOBAR ISLANDS, ANDHRA PRADESH, ARUNACHAL PRADESH, ASSAM, BIHAR, CHANDIGARH, CHHATTISGARH, DADRA AND NAGAR HAVELI, DAMAN AND DIU, DELHI...
+
+## Key Data Categories
+The dataset is organized into several key categories:
+- **Rainfall Data**: Rainfall measurements in mm across command areas (C), non-command areas (NC), and poor quality areas (PQ)
+- **Geographical Areas**: Total geographical area, recharge-worthy areas, and hilly areas in hectares
+- **Groundwater Recharge**: Recharge from various sources including rainfall, canals, surface water irrigation, groundwater irrigation, tanks/ponds, water conservation structures, pipelines, and sewage/flood channels
+- **Inflows and Outflows**: Base flow, stream recharges, lateral flows, vertical flows, evaporation, transpiration, and evapotranspiration
+- **Annual Recharge and Resources**: Annual groundwater recharge, environmental flows, and extractable groundwater resources
+- **Groundwater Extraction**: Extraction for domestic, industrial, and irrigation uses
+- **Extraction Stages**: Percentage of extractable resource being withdrawn
+- **Future Projections**: Allocation for domestic use in 2025 and net availability for future use
+- **Quality Assessment**: Quality tagging for major and other parameters
+- **Special Conditions**: Additional potential resources under specific conditions like waterlogging, flood-prone areas, and spring discharge
+- **Aquifer Types**: Data for unconfined, confined, and semi-confined aquifers with fresh and saline water classification
+
+## Area Classifications
+Data is categorized by area types:
+- **Command Areas (C)**: Areas irrigated by canals
+- **Non-Command Areas (NC)**: Areas not covered by canal irrigation
+- **Poor Quality Areas (PQ)**: Areas with highly saline or otherwise unfit water for conventional use
+
+## Units and Measurements
+- **mm**: Millimeters (for rainfall)
+- **ha**: Hectares (for area measurements)
+- **ham**: Hectare-meters (for groundwater volumes)
+- **%**: Percentage (for extraction stages)
+
+## Key Insights
+- Average annual extractable groundwater resource: 118120.32 hectare-meters
+- Average groundwater extraction stage: 59.14%
+- Average annual rainfall: 1251.01 mm
+
+## Data Quality
+- Total records across all years: 4,162
+- Average data completeness: 50.1%
+
+## Usage Guidelines
+This dataset can be used to answer questions about:
+- Groundwater availability and extraction patterns across Indian states and districts
+- Rainfall patterns and their impact on groundwater recharge
+- Comparison of groundwater resources between different regions
+- Trends in groundwater extraction and sustainability
+- Water quality issues and contamination patterns
+- Future water resource planning and projections
+- Environmental flow requirements and conservation needs
+
+## Key Column Descriptions
+- **STATE**: Name of the Indian state
+- **DISTRICT**: Name of the district within a state
+- **ASSESSMENT UNIT**: Smallest administrative or hydrological unit assessed for groundwater estimation
+- **Rainfall (mm)_Total**: Total rainfall (in mm) for the assessment unit (sum of categories)
+- **Annual Ground water Recharge (ham)_Total**: Total computed annual groundwater recharge
+- **Annual Extractable Ground water Resource (ham)_Total**: Total extractable groundwater available for withdrawal
+
+## Column Descriptions
+"S.No": "Serial number for entry identification",
+"STATE": "Name of the Indian state",
+"DISTRICT": "Name of the district within a state",
+"ASSESSMENT UNIT": "Smallest administrative or hydrological unit assessed for groundwater estimation",
+"Rainfall (mm)_C": "Rainfall (in mm) in command areas (irrigated by canals)",
+"Rainfall (mm)_NC": "Rainfall (in mm) in non-command areas (not covered by canal irrigation)",
+"Rainfall (mm)_PQ": "Rainfall (in mm) in poor quality areas (highly saline or otherwise unfit for conventional use)",
+"Rainfall (mm)_Total": "Total rainfall (in mm) for the assessment unit (sum of categories)",
+"Total Geographical Area (ha)_Recharge Worthy Area (ha)_C": "Area (in hectares) within command areas suitable for groundwater recharge",
+"Total Geographical Area (ha)_Recharge Worthy Area (ha)_NC": "Area (ha) in non-command suitable for recharge",
+"Total Geographical Area (ha)_Recharge Worthy Area (ha)_PQ": "Area (ha) in poor quality regions suitable for recharge",
+"Total Geographical Area (ha)_Recharge Worthy Area (ha)_Total": "Total area suitable for recharge",
+"Total Geographical Area (ha)_Hilly Area": "Area classified as hilly and less recharge-worthy",
+"Total Geographical Area (ha)_Total": "Full area (ha) covered by the assessment unit or region",
+"Ground Water Recharge (ham)_Rainfall Recharge_C": "Groundwater recharge attributed to rainfall in command areas (in hectare-meters)",
+"Ground Water Recharge (ham)_Rainfall Recharge_NC": "Groundwater recharge attributed to rainfall in non-command areas",
+"Ground Water Recharge (ham)_Rainfall Recharge_PQ": "Groundwater recharge attributed to rainfall in poor quality areas",
+"Ground Water Recharge (ham)_Rainfall Recharge_Total": "Total groundwater recharge from rainfall",
+"Ground Water Recharge (ham)_Canals_C": "Recharge contribution from canals in command areas",
+"Ground Water Recharge (ham)_Canals_NC": "Recharge contribution from canals in non-command areas",
+"Ground Water Recharge (ham)_Canals_PQ": "Recharge contribution from canals in poor quality areas",
+"Ground Water Recharge (ham)_Canals_Total": "Total recharge from canals",
+"Ground Water Recharge (ham)_Surface Water Irrigation_C": "Recharge from surface water irrigation in command areas",
+"Ground Water Recharge (ham)_Surface Water Irrigation_NC": "Recharge from surface water irrigation in non-command areas",
+"Ground Water Recharge (ham)_Surface Water Irrigation_PQ": "Recharge from surface water irrigation in poor quality areas",
+"Ground Water Recharge (ham)_Surface Water Irrigation_Total": "Total surface water irrigation recharge",
+"Ground Water Recharge (ham)_Ground Water Irrigation_C": "Recharge resulting from groundwater irrigation return flow in command areas",
+"Ground Water Recharge (ham)_Ground Water Irrigation_NC": "Recharge resulting from groundwater irrigation return flow in non-command areas",
+"Ground Water Recharge (ham)_Ground Water Irrigation_PQ": "Recharge resulting from groundwater irrigation return flow in poor quality areas",
+"Ground Water Recharge (ham)_Ground Water Irrigation_Total": "Total recharge by groundwater irrigation",
+"Ground Water Recharge (ham)_Tanks and Ponds_C": "Recharge from water bodies like tanks and ponds in command areas",
+"Ground Water Recharge (ham)_Tanks and Ponds_NC": "Recharge from tanks and ponds in non-command areas",
+"Ground Water Recharge (ham)_Tanks and Ponds_PQ": "Recharge from tanks and ponds in poor quality areas",
+"Ground Water Recharge (ham)_Tanks and Ponds_Total": "Total recharge from tanks and ponds",
+"Ground Water Recharge (ham)_Water Conservation Structure_C": "Recharge from artificial structures for water conservation in command areas",
+"Ground Water Recharge (ham)_Water Conservation Structure_NC": "Recharge from water conservation structures in non-command areas",
+"Ground Water Recharge (ham)_Water Conservation Structure_PQ": "Recharge from water conservation structures in poor quality areas",
+"Ground Water Recharge (ham)_Water Conservation Structure_Total": "Total recharge from all water conservation structures",
+"Ground Water Recharge (ham)_Pipelines_C": "Recharge from seepage or leaks from pipelines in command areas",
+"Ground Water Recharge (ham)_Pipelines_NC": "Recharge from pipelines in non-command areas",
+"Ground Water Recharge (ham)_Pipelines_PQ": "Recharge from pipelines in poor quality areas",
+"Ground Water Recharge (ham)_Pipelines_Total": "Total recharge from pipelines",
+"Ground Water Recharge (ham)_Sewages and Flash Flood Channels_C": "Recharge from urban runoff and storm water channels in command areas",
+"Ground Water Recharge (ham)_Sewages and Flash Flood Channels_NC": "Recharge from sewage and flash flood channels in non-command areas",
+"Ground Water Recharge (ham)_Sewages and Flash Flood Channels_PQ": "Recharge from sewage and flood channels in poor quality areas",
+"Ground Water Recharge (ham)_Sewages and Flash Flood Channels_Total": "Total recharge from sewage and flash flood channels",
+"Ground Water Recharge (ham)_C": "Aggregated groundwater recharge in command areas",
+"Ground Water Recharge (ham)_NC": "Aggregated groundwater recharge in non-command areas",
+"Ground Water Recharge (ham)_PQ": "Aggregated groundwater recharge in poor quality areas",
+"Ground Water Recharge (ham)_Total": "Total aggregated groundwater recharge",
+"Inflows and Outflows (ham)_Base Flow_C": "Groundwater flowing out to streams (base flow) in command areas",
+"Inflows and Outflows (ham)_Base Flow_NC": "Base flow to streams in non-command areas",
+"Inflows and Outflows (ham)_Base Flow_PQ": "Base flow to streams in poor quality areas",
+"Inflows and Outflows (ham)_Base Flow_Total": "Total base flow in all areas",
+"Inflows and Outflows (ham)_Stream Recharges_C": "Stream contributions to groundwater recharge in command areas",
+"Inflows and Outflows (ham)_Stream Recharges_NC": "Stream recharge in non-command areas",
+"Inflows and Outflows (ham)_Stream Recharges_PQ": "Stream recharge in poor quality areas",
+"Inflows and Outflows (ham)_Stream Recharges_Total": "Total recharge from streams",
+"Inflows and Outflows (ham)_Lateral Flows_C": "Groundwater flow from adjacent units in command areas",
+"Inflows and Outflows (ham)_Lateral Flows_NC": "Lateral groundwater flows in non-command areas",
+"Inflows and Outflows (ham)_Lateral Flows_PQ": "Lateral flows in poor quality areas",
+"Inflows and Outflows (ham)_Lateral Flows_Total": "Total lateral groundwater flows",
+"Inflows and Outflows (ham)_Vertical Flows_C": "Groundwater exchanged with deeper aquifers (vertical movement) in command areas",
+"Inflows and Outflows (ham)_Vertical Flows_NC": "Vertical groundwater flows in non-command areas",
+"Inflows and Outflows (ham)_Vertical Flows_PQ": "Vertical groundwater flows in poor quality areas",
+"Inflows and Outflows (ham)_Vertical Flows_Total": "Total vertical groundwater flows",
+"Inflows and Outflows (ham)_Evaporation_C": "Groundwater loss via evaporation in command areas",
+"Inflows and Outflows (ham)_Evaporation_NC": "Evaporation loss in non-command areas",
+"Inflows and Outflows (ham)_Evaporation_PQ": "Evaporation loss in poor quality areas",
+"Inflows and Outflows (ham)_Evaporation_Total": "Total groundwater lost by evaporation",
+"Inflows and Outflows (ham)_Transpiration_C": "Groundwater loss by plant transpiration in command areas",
+"Inflows and Outflows (ham)_Transpiration_NC": "Transpiration loss in non-command areas",
+"Inflows and Outflows (ham)_Transpiration_PQ": "Transpiration loss in poor quality areas",
+"Inflows and Outflows (ham)_Transpiration_Total": "Total groundwater lost by transpiration",
+"Inflows and Outflows (ham)_Evapotranspiration_C": "Total water lost to air through evaporation and transpiration in command areas",
+"Inflows and Outflows (ham)_Evapotranspiration_NC": "Evapotranspiration in non-command areas",
+"Inflows and Outflows (ham)_Evapotranspiration_PQ": "Evapotranspiration in poor quality areas",
+"Inflows and Outflows (ham)_Evapotranspiration_Total": "Total groundwater lost by evapotranspiration",
+"Inflows and Outflows (ham)_C": "Net inflows and outflows in command areas",
+"Inflows and Outflows (ham)_NC": "Net inflows and outflows in non-command areas",
+"Inflows and Outflows (ham)_PQ": "Net inflows and outflows in poor quality areas",
+"Inflows and Outflows (ham)_Total": "Total net inflows and outflows",
+"Annual Ground water Recharge (ham)_C": "Computed annual groundwater recharge in command areas",
+"Annual Ground water Recharge (ham)_NC": "Computed annual groundwater recharge in non-command areas",
+"Annual Ground water Recharge (ham)_PQ": "Computed annual groundwater recharge in poor quality areas",
+"Annual Ground water Recharge (ham)_Total": "Total computed annual groundwater recharge",
+"Environmental Flows (ham)_C": "Minimum flows preserved for ecological needs in command areas",
+"Environmental Flows (ham)_NC": "Environmental flows in non-command areas",
+"Environmental Flows (ham)_PQ": "Environmental flows in poor quality areas",
+"Environmental Flows (ham)_Total": "Total environmental flows",
+"Annual Extractable Ground water Resource (ham)_C": "Groundwater available for withdrawal in command areas",
+"Annual Extractable Ground water Resource (ham)_NC": "Annual extractable groundwater in non-command areas",
+"Annual Extractable Ground water Resource (ham)_PQ": "Annual extractable groundwater in poor quality areas",
+"Annual Extractable Ground water Resource (ham)_Total": "Total extractable groundwater available for withdrawal"
