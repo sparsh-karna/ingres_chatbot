@@ -838,7 +838,10 @@ def create_sliding_windows(data, seq_len):
         y.append(data[i+seq_len])
     return np.array(X), np.array(y)
 
-def forecast_data(df: pd.DataFrame, predict_all_columns=True, forecast_years=5, seq_len=3, epochs=300, lr=0.01):
+def forecast_data(df: pd.DataFrame, cols:List, predict_all_columns=True, forecast_years=5, seq_len=3, epochs=300, lr=0.01):
+    if cols==[]:
+        cols = df.columns.tolist()
+    df = df[cols]
     df_numeric = df.select_dtypes(include=[np.number])
     if df_numeric.shape[0] <= seq_len:
         raise ValueError(f"Need more than {seq_len} rows for the sliding window approach.")

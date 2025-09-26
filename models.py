@@ -116,6 +116,7 @@ class CSVData(BaseModel):
 
 class CSVForecastDataInput(BaseModel):
     csv_content: str
+    cols: List = []
     all_col: bool = True
     yrs: int = 5
 
