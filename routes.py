@@ -159,36 +159,36 @@ class Routes:
     async def process_chat(self, request: ChatRequest) -> ChatResponse:
         """Process chat message endpoint with voice detection and response"""
         session_id = None
-        
+
         # Start overall timing
         total_start_time = time.time()
         timing_stats = {}
-        
+
         try:
             # Session validation timing
             session_start = time.time()
             session_id = validate_session_id(request.session_id)
             if not session_id:
                 session_id = get_or_create_session_id(None)
-                
+
                 # Create new session in MongoDB
                 if self.db_manager.is_mongodb_available():
                     self.db_manager.create_chat_session(session_id)
-            
+
             timing_stats['session_validation'] = time.time() - session_start
-            
+
             # Input processing timing
             input_processing_start = time.time()
-            
+
             # Determine if this is voice input and process accordingly
             detected_language = None
             question_text = None
             original_question_text = None  # Keep original question for LLM response generation
-            
+
             if request.input_type == "voice" and request.audio_data:
                 voice_processing_start = time.time()
                 logger.info("Processing voice input")
-                
+
                 # Process voice input using speech service
                 if self.speech_service and self.speech_service.is_available():
                     # Decode base64 audio data to bytes
@@ -198,7 +198,7 @@ class Routes:
                         audio_bytes = base64.b64decode(request.audio_data)
                         timing_stats['audio_decode'] = time.time() - decode_start
                         logger.info(f"Decoded audio data: {len(audio_bytes)} bytes")
-                        
+
                         stt_start = time.time()
                         voice_result = self.speech_service.speech_to_text(audio_bytes)
                         timing_stats['speech_to_text'] = time.time() - stt_start
@@ -206,18 +206,18 @@ class Routes:
                     except Exception as decode_error:
                         logger.error(f"Error decoding audio data: {decode_error}")
                         raise Exception(f"Failed to decode audio data: {decode_error}")
-                    
+
                     if voice_result.get("transcript"):
                         question_text = voice_result["transcript"]  # This is the English transcript
                         detected_language = voice_result.get("language_code", "en-IN")
                         logger.info(f"Voice transcription successful: {question_text} (Language: {detected_language})")
-                        
+
                         # For voice input: If detected language is not English, we need to:
                         # 1. Translate English transcript TO the detected language for LLM (so it responds in user's language)
                         # 2. Keep English transcript for SQL processing
                         if detected_language != "en-IN" and self.speech_service.is_translation_available():
                             logger.info(f"Translating English transcript TO {detected_language} for LLM response")
-                            
+
                             try:
                                 translation_start = time.time()
                                 # Translate English transcript to user's language for LLM
@@ -227,7 +227,7 @@ class Routes:
                                     target_language=detected_language
                                 )
                                 timing_stats['voice_translation'] = time.time() - translation_start
-                                
+
                                 if translation_result.get("translated_text") and not translation_result.get("error"):
                                     translated_to_user_language = translation_result["translated_text"]
                                     logger.info(f"Translation successful for LLM: '{question_text}' -> '{translated_to_user_language}'")
@@ -241,16 +241,16 @@ class Routes:
                         else:
                             # English input or no translation service
                             original_question_text = question_text
-                        
+
                         # question_text stays as English transcript for SQL processing
-                        
+
                     else:
                         error_msg = voice_result.get("error", "Unknown transcription error")
                         logger.error(f"Transcription failed: {error_msg}")
                         raise Exception(f"Failed to transcribe voice input: {error_msg}")
                 else:
                     raise Exception("Speech service not available")
-                
+
                 timing_stats['voice_processing'] = time.time() - voice_processing_start
             else:
                 # Text input processing
@@ -259,17 +259,17 @@ class Routes:
                 original_question_text = question_text  # Keep original for LLM response
                 if not question_text:
                     raise Exception("No question provided")
-                
+
                 # Detect language from text if speech service is available
                 if self.speech_service and self.speech_service.is_available():
                     lang_detect_start = time.time()
                     detected_language = self.speech_service.detect_language_from_text(question_text)
                     timing_stats['language_detection'] = time.time() - lang_detect_start
-                    
+
                     # If detected language is not English, translate to English for SQL processing only
                     if detected_language and detected_language != "en-IN" and self.speech_service.is_translation_available():
                         logger.info(f"Translating text input from {detected_language} to English for SQL processing")
-                        
+
                         try:
                             text_translation_start = time.time()
                             translation_result = self.speech_service.translate_text(
@@ -278,7 +278,7 @@ class Routes:
                                 target_language="en-IN"
                             )
                             timing_stats['text_translation'] = time.time() - text_translation_start
-                            
+
                             if translation_result.get("translated_text") and not translation_result.get("error"):
                                 translated_question = translation_result["translated_text"]
                                 logger.info(f"Text translation successful for SQL processing: '{question_text}' -> '{translated_question}'")
@@ -292,26 +292,26 @@ class Routes:
                     elif detected_language and detected_language != "en-IN":
                         logger.warning("Translation service not available, using original text")
                         # Keep original question_text if translation service not available
-                
+
                 timing_stats['text_processing'] = time.time() - text_processing_start
-            
+
             timing_stats['input_processing'] = time.time() - input_processing_start
-            
+
             logger.info(f"Processing chat query: {question_text}")
-            
+
             # Ensure we have an original question (fallback to processed question if no translation occurred)
             if not original_question_text:
                 original_question_text = question_text
-            
+
             # Context processing timing
             context_start = time.time()
             # Get enhanced context from previous conversation
             enhanced_context = get_enhanced_chat_context(session_id, self.db_manager)
-            
+
             # Create context-aware question if we have previous context
             contextual_question = create_context_aware_question(question_text, enhanced_context)
             timing_stats['context_processing'] = time.time() - context_start
-            
+
             # Query processing timing
             query_processing_start = time.time()
             # Process the query using the query processor
@@ -322,14 +322,14 @@ class Routes:
                 original_question=original_question_text  # Original question for LLM response
             )
             timing_stats['query_processing'] = time.time() - query_processing_start
-            
+
             if not result.get('success', False):
                 raise Exception(result.get('error', 'Unknown error occurred'))
-            
+
             result_data = result.get('data', pd.DataFrame())
             base_response = result.get('response', '')
             sql_query = result.get('sql_query', 'Query not available')
-            
+
             # Enhanced explanation timing
             explanation_start = time.time()
             # Generate enhanced explanation using original question so it's in the right language
@@ -337,18 +337,18 @@ class Routes:
                 original_question_text, sql_query, result_data, enhanced_context, base_response, self.llm
             )
             timing_stats['explanation_generation'] = time.time() - explanation_start
-            
+
             # Response preparation timing
             response_prep_start = time.time()
             # Prepare response data
             response_data = prepare_response_data(result_data)
             csv_data = format_csv_data(result_data)
             timing_stats['response_preparation'] = time.time() - response_prep_start
-            
+
             # Handle audio output (no response translation needed since LLM responds in original language)
             translated_response = base_response  # LLM already responded in the original language
             audio_response = None
-            
+
             # Generate audio response only for voice input
             if request.input_type == "voice" and detected_language and self.speech_service and self.speech_service.is_available():
                 # Check if Azure TTS is available before attempting audio generation
@@ -361,7 +361,7 @@ class Routes:
                         target_language=detected_language
                     )
                     timing_stats['audio_generation'] = time.time() - audio_generation_start
-                    
+
                     if audio_result.get("audio_data"):
                         # Convert audio bytes to base64 string
                         import base64
@@ -371,7 +371,7 @@ class Routes:
                         logger.error(f"Audio generation failed: {audio_result.get('error', 'Unknown error')}")
                 else:
                     logger.warning("Azure TTS not available - AZURE_API_KEY not configured. Skipping audio generation.")
-            
+
             # Session management timing
             session_mgmt_start = time.time()
             # Add messages to session
@@ -379,11 +379,11 @@ class Routes:
                 session_id, question_text, base_response, 
                 sql_query, result_data, explanation, self.db_manager
             )
-            
+
             # Get chat history for response
             chat_history = get_chat_history_for_response(session_id, self.db_manager)
             timing_stats['session_management'] = time.time() - session_mgmt_start
-            
+
             # Final response assembly timing
             response_assembly_start = time.time()
             # Create metadata
@@ -392,18 +392,18 @@ class Routes:
                 session_id=session_id,
                 has_visualization=False
             )
-            
+
             # Calculate total processing time
             timing_stats['total_processing'] = time.time() - total_start_time
-            
+
             # Log performance metrics
             logger.info("Chat query processed successfully")
             logger.info(f"🕐 Performance Timing Stats: {timing_stats}")
-            
+
             # Add timing stats to metadata for client visibility
             metadata['timing_stats'] = timing_stats
             timing_stats['response_assembly'] = time.time() - response_assembly_start
-            
+
             return ChatResponse(
                 success=True,
                 session_id=session_id,
@@ -421,15 +421,15 @@ class Routes:
                 metadata=metadata,
                 chat_history=chat_history
             )
-            
+
         except Exception as e:
             # Calculate timing even for errors
             error_total_time = time.time() - total_start_time
             timing_stats['total_processing'] = error_total_time
-            
+
             logger.error(f"Error processing chat: {e}")
             logger.error(f"🕐 Error Processing Time: {error_total_time:.3f}s | Partial Timing: {timing_stats}")
-            
+
             return ChatResponse(
                 success=False,
                 session_id=session_id or "",

@@ -24,10 +24,10 @@ from models import (
     QueryRequest, ChatRequest, QueryResponse, ChatResponse,
     SessionResponse, SessionsListResponse, ChatHistoryResponse,
     HealthResponse, CSVData, CSVForecastDataInput, EDADataInput,
-    GeneralChatRequest, GeneralChatResponse
+    GeneralChatRequest, GeneralChatResponse, LandAssessmentRequest, LandAssessmentResponse
 )
 from routes import Routes
-from helpers import clean_md
+from helpers import clean_md, land_assessment_analysis
 
 # Load environment variables
 load_dotenv()
@@ -381,6 +381,53 @@ async def forecast(csv_data: CSVForecastDataInput):
 @app.post("/eda")
 async def eda(eda_input: EDADataInput):
     return await route_handlers.eda(eda_input)
+
+@app.post("/land-assessment", response_model=LandAssessmentResponse)
+async def land_assessment(request: LandAssessmentRequest):
+    """
+    Analyze land and crop suitability based on location and farming parameters.
+    
+    This endpoint provides comprehensive analysis including:
+    - Monthly water requirements 
+    - Crop suitability scores
+    - Soil analysis
+    - Water sources distribution
+    - Farming recommendations
+    """
+    try:
+        # Call the land assessment analysis function
+        analysis_result = land_assessment_analysis(
+            state=request.state,
+            district=request.district,
+            assessment_unit=request.assessment_unit,
+            cropping_season=request.cropping_season,
+            soil_type=request.soil_type,
+            irrigation_type=request.irrigation_type
+        )
+        
+        # Create response object
+        response = LandAssessmentResponse(
+            success=True,
+            water_requirements=analysis_result.get('water_requirements', []),
+            crop_suitability=analysis_result.get('crop_suitability', []),
+            soil_analysis=analysis_result.get('soil_analysis'),
+            water_sources=analysis_result.get('water_sources'),
+            recommendations=analysis_result.get('recommendations', []),
+            total_annual_requirement=analysis_result.get('total_annual_requirement'),
+            critical_months=analysis_result.get('critical_months', []),
+            error=analysis_result.get('error', '')
+        )
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error in land assessment endpoint: {e}")
+        
+        # Return error response
+        return LandAssessmentResponse(
+            success=False,
+            error=f"Analysis failed: {str(e)}"
+        )
 
 # --- Microservices Integration Endpoints ---
 @app.get("/microservices/status", response_model=ServiceStatus)

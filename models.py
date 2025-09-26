@@ -138,3 +138,56 @@ class GeneralChatResponse(BaseModel):
     session_id: Optional[str] = Field(default=None, description="Session ID if provided")
     error: str = Field(default="", description="Error message if any")
     metadata: Optional[Dict] = Field(default=None, description="Additional response metadata")
+
+
+class LandAssessmentRequest(BaseModel):
+    """Request model for land assessment and crop analysis"""
+    state: str = Field(..., description="Selected state")
+    district: Optional[str] = Field(default=None, description="Selected district")
+    assessment_unit: Optional[str] = Field(default=None, description="Selected assessment unit")
+    cropping_season: Optional[str] = Field(default=None, description="Cropping season (kharif/rabi/summer)")
+    soil_type: Optional[str] = Field(default=None, description="Soil type (alluvial/black/red/laterite)")
+    irrigation_type: Optional[str] = Field(default=None, description="Irrigation type (drip/sprinkler/flood/rainfed)")
+
+
+class WaterRequirement(BaseModel):
+    """Water requirement data for a specific month or crop"""
+    month: str = Field(..., description="Month name")
+    requirement_mm: float = Field(..., description="Water requirement in mm")
+    percentage: float = Field(..., description="Percentage of total annual requirement")
+
+
+class CropSuitability(BaseModel):
+    """Crop suitability data"""
+    crop_name: str = Field(..., description="Name of the crop")
+    suitability_score: float = Field(..., description="Suitability score (0-100)")
+    water_requirement: float = Field(..., description="Water requirement in mm")
+    recommended: bool = Field(..., description="Whether this crop is recommended")
+
+
+class SoilAnalysis(BaseModel):
+    """Soil analysis results"""
+    ph_level: float = Field(..., description="Soil pH level")
+    organic_matter: float = Field(..., description="Organic matter percentage")
+    clay_content: float = Field(..., description="Clay content percentage")
+    drainage: str = Field(..., description="Drainage quality (Poor/Fair/Good/Excellent)")
+
+
+class WaterSources(BaseModel):
+    """Water sources distribution"""
+    groundwater_percentage: float = Field(..., description="Groundwater dependency percentage")
+    rainfall_percentage: float = Field(..., description="Rainfall dependency percentage")
+    surface_water_percentage: Optional[float] = Field(default=0.0, description="Surface water percentage")
+
+
+class LandAssessmentResponse(BaseModel):
+    """Response model for land assessment analysis"""
+    success: bool = Field(..., description="Whether the analysis was successful")
+    water_requirements: List[WaterRequirement] = Field(default=[], description="Monthly water requirements")
+    crop_suitability: List[CropSuitability] = Field(default=[], description="Crop suitability analysis")
+    soil_analysis: Optional[SoilAnalysis] = Field(default=None, description="Soil analysis results")
+    water_sources: Optional[WaterSources] = Field(default=None, description="Water sources distribution")
+    recommendations: List[str] = Field(default=[], description="Farming and water management recommendations")
+    total_annual_requirement: Optional[float] = Field(default=None, description="Total annual water requirement in mm")
+    critical_months: List[str] = Field(default=[], description="Months with highest water demand")
+    error: str = Field(default="", description="Error message if any")

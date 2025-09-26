@@ -1087,3 +1087,234 @@ def get_plotly_json_for_frontend(result: dict) -> list:
         list: List of Plotly JSON objects for frontend
     """
     return result.get('plotly_json', [])
+
+
+def land_assessment_analysis(
+    state: str,
+    district: Optional[str] = None,
+    assessment_unit: Optional[str] = None,
+    cropping_season: Optional[str] = None,
+    soil_type: Optional[str] = None,
+    irrigation_type: Optional[str] = None
+) -> dict:
+    """
+    Generate comprehensive land assessment and crop suitability analysis using Gemini LLM.
+    
+    Args:
+        state: Selected state
+        district: Selected district (optional)
+        assessment_unit: Selected assessment unit (optional)
+        cropping_season: Cropping season (kharif/rabi/summer) (optional)
+        soil_type: Soil type (alluvial/black/red/laterite) (optional)
+        irrigation_type: Irrigation type (drip/sprinkler/flood/rainfed) (optional)
+        
+    Returns:
+        dict: Comprehensive analysis results with water requirements and crop suitability
+    """
+    
+    # Configure Gemini
+    api_key = os.getenv("GOOGLE_API_KEY")
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("models/gemini-1.5-flash-8b")
+    
+    # Create comprehensive prompt for analysis
+    prompt = f"""
+You are an expert agricultural and groundwater analyst. Provide a comprehensive land assessment and crop suitability analysis based on the following parameters:
+
+LOCATION DETAILS:
+- State: {state}
+- District: {district or 'Not specified'}
+- Assessment Unit: {assessment_unit or 'Not specified'}
+
+FARMING PARAMETERS:
+- Cropping Season: {cropping_season or 'Not specified'}
+- Soil Type: {soil_type or 'Not specified'}
+- Irrigation Type: {irrigation_type or 'Not specified'}
+
+Please provide a detailed analysis in the following JSON format:
+
+{{
+  "water_requirements": [
+    {{
+      "month": "January",
+      "requirement_mm": 15.0,
+      "percentage": 5.2
+    }},
+    {{
+      "month": "February", 
+      "requirement_mm": 25.0,
+      "percentage": 8.7
+    }}
+    // ... continue for all 12 months
+  ],
+  "crop_suitability": [
+    {{
+      "crop_name": "Rice",
+      "suitability_score": 95.0,
+      "water_requirement": 1200.0,
+      "recommended": true
+    }},
+    {{
+      "crop_name": "Wheat",
+      "suitability_score": 85.0,
+      "water_requirement": 450.0,
+      "recommended": true
+    }}
+    // ... include 8-10 relevant crops
+  ],
+  "soil_analysis": {{
+    "ph_level": 7.2,
+    "organic_matter": 2.1,
+    "clay_content": 45.0,
+    "drainage": "Good"
+  }},
+  "water_sources": {{
+    "groundwater_percentage": 65.0,
+    "rainfall_percentage": 35.0,
+    "surface_water_percentage": 0.0
+  }},
+  "recommendations": [
+    "Rice and Sugarcane are highly suitable for your soil type",
+    "Consider crop rotation to maintain soil health",
+    "Implement drip irrigation for water efficiency",
+    "Add organic matter to improve soil structure",
+    "Monitor groundwater levels regularly during peak seasons"
+  ],
+  "total_annual_requirement": 850.0,
+  "critical_months": ["April", "May", "June"]
+}}
+
+ANALYSIS REQUIREMENTS:
+
+1. **Water Requirements**: Provide realistic monthly water requirements (mm) based on:
+   - Regional climate patterns for {state}
+   - Selected cropping season ({cropping_season or 'general'})
+   - Irrigation type efficiency ({irrigation_type or 'general'})
+   - Include percentage of total annual requirement for each month
+
+2. **Crop Suitability**: Analyze 8-10 relevant crops with scores based on:
+   - Soil type compatibility ({soil_type or 'general'})
+   - Regional climate suitability for {state}
+   - Water availability and requirements
+   - Market viability and traditional growing patterns
+   - Include major crops: Rice, Wheat, Maize, Sugarcane, Cotton, Pulses, Oilseeds
+
+3. **Soil Analysis**: Provide realistic soil parameters for:
+   - pH level appropriate for {soil_type or 'general'} soils
+   - Organic matter content typical for the region
+   - Clay content based on soil type
+   - Drainage characteristics
+
+4. **Water Sources**: Estimate percentage dependency on:
+   - Groundwater extraction
+   - Rainfall/monsoon dependency  
+   - Surface water availability (rivers, canals)
+
+5. **Recommendations**: Provide 5-7 actionable recommendations covering:
+   - Crop selection based on suitability scores
+   - Water management practices
+   - Soil improvement suggestions
+   - Sustainable farming practices
+   - Risk mitigation strategies
+
+6. **Critical Analysis**:
+   - Calculate realistic total annual water requirement
+   - Identify 2-4 critical months with highest water demand
+   - Consider regional rainfall patterns and dry seasons
+
+IMPORTANT GUIDELINES:
+- Base analysis on real agricultural data patterns for {state}
+- Consider regional climate, soil conditions, and farming practices
+- Provide realistic and implementable recommendations
+- Ensure water requirements align with crop types and irrigation methods
+- Include both traditional and modern sustainable practices
+- Consider groundwater sustainability and conservation
+
+Return ONLY the JSON response with no additional text or formatting.
+"""
+
+    try:
+        # Generate analysis with Gemini
+        response = model.generate_content(prompt)
+        
+        # Extract and clean response text
+        response_text = response.text.strip()
+        if response_text.startswith('```json'):
+            response_text = response_text.replace('```json', '').replace('```', '').strip()
+        elif response_text.startswith('```'):
+            response_text = response_text.replace('```', '').strip()
+        
+        # Parse JSON response
+        result = json.loads(response_text)
+        
+        # Validate and ensure all required fields are present
+        if not isinstance(result, dict):
+            raise ValueError("Invalid response format")
+            
+        # Ensure required fields exist with defaults
+        result.setdefault('water_requirements', [])
+        result.setdefault('crop_suitability', [])
+        result.setdefault('recommendations', [])
+        result.setdefault('total_annual_requirement', 0.0)
+        result.setdefault('critical_months', [])
+        
+        # Convert any numpy types to Python native types
+        result = convert_numpy_types(result)
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error in land_assessment_analysis: {e}")
+        
+        # Return comprehensive fallback data
+        fallback_data = {
+            "water_requirements": [
+                {"month": "January", "requirement_mm": 15.0, "percentage": 4.2},
+                {"month": "February", "requirement_mm": 25.0, "percentage": 7.0},
+                {"month": "March", "requirement_mm": 45.0, "percentage": 12.6},
+                {"month": "April", "requirement_mm": 80.0, "percentage": 22.4},
+                {"month": "May", "requirement_mm": 120.0, "percentage": 33.6},
+                {"month": "June", "requirement_mm": 110.0, "percentage": 30.8},
+                {"month": "July", "requirement_mm": 85.0, "percentage": 23.8},
+                {"month": "August", "requirement_mm": 70.0, "percentage": 19.6},
+                {"month": "September", "requirement_mm": 55.0, "percentage": 15.4},
+                {"month": "October", "requirement_mm": 40.0, "percentage": 11.2},
+                {"month": "November", "requirement_mm": 30.0, "percentage": 8.4},
+                {"month": "December", "requirement_mm": 20.0, "percentage": 5.6}
+            ],
+            "crop_suitability": [
+                {"crop_name": "Rice", "suitability_score": 95.0, "water_requirement": 1200.0, "recommended": True},
+                {"crop_name": "Wheat", "suitability_score": 85.0, "water_requirement": 450.0, "recommended": True},
+                {"crop_name": "Maize", "suitability_score": 75.0, "water_requirement": 600.0, "recommended": True},
+                {"crop_name": "Sugarcane", "suitability_score": 90.0, "water_requirement": 2000.0, "recommended": True},
+                {"crop_name": "Cotton", "suitability_score": 60.0, "water_requirement": 800.0, "recommended": False},
+                {"crop_name": "Pulses", "suitability_score": 70.0, "water_requirement": 350.0, "recommended": True},
+                {"crop_name": "Groundnut", "suitability_score": 65.0, "water_requirement": 500.0, "recommended": False},
+                {"crop_name": "Soybean", "suitability_score": 72.0, "water_requirement": 450.0, "recommended": True}
+            ],
+            "soil_analysis": {
+                "ph_level": 7.2,
+                "organic_matter": 2.1,
+                "clay_content": 45.0,
+                "drainage": "Good"
+            },
+            "water_sources": {
+                "groundwater_percentage": 65.0,
+                "rainfall_percentage": 35.0,
+                "surface_water_percentage": 0.0
+            },
+            "recommendations": [
+                f"Rice and Wheat are highly suitable for {state} conditions",
+                "Consider crop rotation to maintain soil health and prevent nutrient depletion",
+                "Implement drip irrigation for water efficiency and reduced groundwater dependency",
+                "Add organic matter through composting to improve soil structure",
+                "Monitor groundwater levels regularly during peak irrigation seasons",
+                "Use weather-based irrigation scheduling to optimize water usage",
+                "Consider drought-resistant crop varieties during water-scarce periods"
+            ],
+            "total_annual_requirement": 357.0,
+            "critical_months": ["April", "May", "June"],
+            "error": f"LLM analysis failed, using fallback data: {str(e)}"
+        }
+        
+        return fallback_data
