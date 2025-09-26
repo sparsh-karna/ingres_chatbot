@@ -720,6 +720,7 @@ CONSTRAINTS:
         valid_indices = [idx for idx in result['graph_indices'] if isinstance(idx, int) and 0 <= idx <= 4]
         result['graph_indices'] = valid_indices
         result['number_of_appropriate_graphs'] = len(valid_indices)
+        result['data']= data  # Include original data for reference
         
         # Filter graph_configs to match valid indices
         valid_configs = [config for config in result.get('graph_configs', []) 
@@ -910,7 +911,6 @@ def eda_analysis(df: pd.DataFrame, user_query: str) -> dict:
     Args:
         df (pd.DataFrame): The pandas DataFrame to analyze
         user_query (str): User's analysis request
-        api_key (str): Google Gemini API key
         
     Returns:
         dict: Analysis results with plotly figures as JSON
@@ -1008,31 +1008,52 @@ Generate only executable Python code:
         if 'analyze_data' in exec_locals:
             result = exec_locals['analyze_data'](df)
             
-            # Convert Plotly figures to JSON for frontend
+            # Convert Plotly figures to JSON for frontend - FIXED VERSION
             if isinstance(result, dict) and 'figures' in result:
                 plotly_json_figures = []
                 for fig in result['figures']:
-                    if hasattr(fig, 'to_json'):
-                        plotly_json_figures.append(json.loads(fig.to_json()))
-                    elif hasattr(fig, 'to_dict'):
-                        plotly_json_figures.append(fig.to_dict())
+                    try:
+                        # Convert each figure to JSON-serializable format
+                        if hasattr(fig, 'to_dict'):
+                            fig_dict = fig.to_dict()
+                            plotly_json_figures.append(fig_dict)
+                        elif hasattr(fig, 'to_json'):
+                            fig_json = json.loads(fig.to_json())
+                            plotly_json_figures.append(fig_json)
+                        else:
+                            # Fallback: try to serialize as dict
+                            plotly_json_figures.append(dict(fig))
+                    except Exception as fig_error:
+                        logger.warning(f"Could not serialize figure: {fig_error}")
+                        # Add a placeholder for failed figures
+                        plotly_json_figures.append({
+                            "error": f"Figure serialization failed: {str(fig_error)}",
+                            "type": "error"
+                        })
                 
+                # Replace the figures with JSON-serializable versions
                 result['plotly_json'] = plotly_json_figures
-                # Keep original figures for local display if needed
-                result['plotly_figures'] = result['figures']
-                del result['figures']  # Remove original figures to avoid serialization issues
+                # Remove original figures to avoid serialization issues
+                del result['figures']
             
-            return result if isinstance(result, dict) else {'analysis': result}
+            # Ensure all values in result are JSON serializable
+            result = convert_numpy_types(result)
+            
+            return result if isinstance(result, dict) else {'analysis': str(result)}
         else:
             return {'error': 'analyze_data function not found in generated code'}
             
     except Exception as e:
+        logger.error(f"EDA analysis error: {e}")
         return {
             'error': f'Analysis failed: {str(e)}',
             'fallback_info': {
-                'dataframe_shape': df.shape,
+                'dataframe_shape': list(df.shape),
                 'columns': list(df.columns),
-                'numeric_summary': df.select_dtypes(include=[np.number]).describe().to_dict() if not df.select_dtypes(include=[np.number]).empty else 'No numeric columns'
+                'numeric_summary': convert_numpy_types(
+                    df.select_dtypes(include=[np.number]).describe().to_dict() 
+                    if not df.select_dtypes(include=[np.number]).empty else {}
+                )
             }
         }
 

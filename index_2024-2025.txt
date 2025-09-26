@@ -1,0 +1,630 @@
+# CSV INDEX FILE
+# Generated on: 2025-09-22 23:50:40
+# Original file: 2024-2025.csv
+
+## DATASET OVERVIEW
+728 rows × 30 columns
+File size: 0.28 MB
+Missing data: 1.93% of total cells
+Duplicate rows: 0
+
+## KEY INSIGHTS
+- Dataset contains 728 rows and 30 columns
+- Column types: {'integer': 28, 'categorical': 1, 'text': 1}
+- Highly variable numeric columns: ['Recharge Worthy Area (ha)', 'Hilly Area (ha)', 'Total Geographical Area (ha)', 'Goundwater Recharge (ham) - Total Rainfall Recharge', 'Goundwater Recharge (ham) - Canals', 'Ground Water Recharge (ham) - Surface Water Irrigation', 'Ground Water Recharge (ham) - Total Ground Water Irrigration', 'Ground Water Recharge (ham) - Tanks and Ponds', 'Ground Water Recharge (ham) - Water Conservation Structure', 'Ground Water Recharge (ham) - Total', 'Annual Ground water Recharge (ham)', 'Environmental Flows (ham)', 'Annual Extractable Ground water Resource (ham)', 'Ground Water Extraction for all uses (ham) - Domestic', 'Ground Water Extraction for all uses (ham) - Industrial', 'Ground Water Extraction for all uses (ham) - Irrigation', 'Ground Water Extraction for all uses (ham) - Total', 'Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham)', 'Net Annual Ground Water Availability for Future Use (ham)', 'In-Storage Unconfined Ground Water Resources(ham) - Fresh', 'In-Storage Unconfined Ground Water Resources(ham) - Saline', 'Total Ground Water Availability in Unconfined Aquifier (ham) - Fresh', 'Total Ground Water Availability in Unconfined Aquifier (ham) - Saline', 'Total Ground Water Availability in the area (ham) - Fresh', 'Total Ground Water Availability in the area (ham) - Saline']
+
+## COLUMN SCHEMA
+ 1. S.No
+    Type: integer
+    Missing: 1 (0.14%)
+    Range: 1.0 to 726.0
+    Mean: 363.5, Median: 363.5
+
+ 2. STATE
+    Type: categorical
+    Missing: 2 (0.27%)
+    Unique values: 37
+    Most common: 'UTTAR PRADESH' (75 times)
+
+ 3. DISTRICT
+    Type: text
+    Missing: 2 (0.27%)
+
+ 4. Total Rainfall (mm)
+    Type: integer
+    Missing: 1 (0.14%)
+    Range: 0.0 to 4420.0
+    Mean: 1251.033, Median: 1073.0
+
+ 5. Recharge Worthy Area (ha)
+    Type: integer
+    Missing: 1 (0.14%)
+    Range: 0.0 to 246428184.0
+    Mean: 677931.7208, Median: 270090.0
+
+ 6. Hilly Area (ha)
+    Type: integer
+    Missing: 1 (0.14%)
+    Range: 0.0 to 45720648.0
+    Mean: 125778.9477, Median: 9157.0
+
+ 7. Total Geographical Area (ha)
+    Type: integer
+    Missing: 1 (0.14%)
+    Range: 0.0 to 292148832.0
+    Mean: 803710.6768, Median: 327100.0
+
+ 8. Goundwater Recharge (ham) - Total Rainfall Recharge
+    Type: integer
+    Missing: 2 (0.27%)
+    Range: 0.0 to 27817058.0
+    Mean: 76631.0055, Median: 30159.0
+
+ 9. Goundwater Recharge (ham) - Canals
+    Type: integer
+    Missing: 98 (13.46%)
+    Range: 0.0 to 4315389.0
+    Mean: 13699.6635, Median: 760.0
+
+10. Ground Water Recharge (ham) - Surface Water Irrigation
+    Type: integer
+    Missing: 8 (1.1%)
+    Range: 0.0 to 6302292.0
+    Mean: 17506.3903, Median: 2701.0
+
+11. Ground Water Recharge (ham) - Total Ground Water Irrigration
+    Type: integer
+    Missing: 2 (0.27%)
+    Range: 0.0 to 5966484.0
+    Mean: 16436.6116, Median: 5964.0
+
+12. Ground Water Recharge (ham) - Tanks and Ponds
+    Type: integer
+    Missing: 47 (6.46%)
+    Range: 0.0 to 1354397.0
+    Mean: 3977.6725, Median: 690.0
+
+13. Ground Water Recharge (ham) - Water Conservation Structure
+    Type: integer
+    Missing: 146 (20.05%)
+    Range: 0.0 to 1413681.0
+    Mean: 4858.0086, Median: 513.0
+
+14. Ground Water Recharge (ham) - Total
+    Type: integer
+    Missing: 2 (0.27%)
+    Range: 0.0 to 47222579.0
+    Mean: 130089.7576, Median: 54858.0
+
+15. Annual Ground water Recharge (ham)
+    Type: integer
+    Missing: 1 (0.14%)
+    Range: 0.0 to 46830798.0
+    Mean: 128833.0206, Median: 54569.0
+
+16. Environmental Flows (ham)
+    Type: integer
+    Missing: 1 (0.14%)
+    Range: 0.0 to 3898199.0
+    Mean: 10724.0633, Median: 4600.0
+
+17. Annual Extractable Ground water Resource (ham)
+    Type: integer
+    Missing: 1 (0.14%)
+    Range: 0.0 to 42936738.0
+    Mean: 118120.3164, Median: 49625.0
+
+18. Ground Water Extraction for all uses (ham) - Domestic
+    Type: integer
+    Missing: 1 (0.14%)
+    Range: 0.0 to 2810004.0
+    Mean: 7730.4113, Median: 2562.0
+
+19. Ground Water Extraction for all uses (ham) - Industrial
+    Type: integer
+    Missing: 2 (0.27%)
+    Range: 0.0 to 423465.0
+    Mean: 1166.5565, Median: 103.5
+
+20. Ground Water Extraction for all uses (ham) - Irrigation
+    Type: integer
+    Missing: 2 (0.27%)
+    Range: 0.0 to 22191865.0
+    Mean: 61134.6157, Median: 22953.5
+
+21. Ground Water Extraction for all uses (ham) - Total
+    Type: integer
+    Missing: 16 (2.2%)
+    Range: 0.0 to 25425334.0
+    Mean: 71419.4944, Median: 28279.5
+
+22. Stage of Ground Water Extraction (%) 
+    Type: integer
+    Missing: 16 (2.2%)
+    Range: 0.0 to 322.0
+    Mean: 59.1433, Median: 52.0
+
+23. Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham)
+    Type: integer
+    Missing: 1 (0.14%)
+    Range: 0.0 to 3633358.0
+    Mean: 9995.4938, Median: 3111.0
+
+24. Net Annual Ground Water Availability for Future Use (ham)
+    Type: integer
+    Missing: 1 (0.14%)
+    Range: 0.0 to 18612779.0
+    Mean: 51204.337, Median: 18955.0
+
+25. In-Storage Unconfined Ground Water Resources(ham) - Fresh
+    Type: integer
+    Missing: 1 (0.14%)
+    Range: 0.0 to 124721719.0
+    Mean: 343113.3906, Median: 0.0
+
+26. In-Storage Unconfined Ground Water Resources(ham) - Saline
+    Type: integer
+    Missing: 31 (4.26%)
+    Range: 0.0 to 2927777.0
+    Mean: 8401.0803, Median: 0.0
+
+27. Total Ground Water Availability in Unconfined Aquifier (ham) - Fresh
+    Type: integer
+    Missing: 1 (0.14%)
+    Range: 0.0 to 165500869.0
+    Mean: 455298.11, Median: 65556.0
+
+28. Total Ground Water Availability in Unconfined Aquifier (ham) - Saline
+    Type: integer
+    Missing: 31 (4.26%)
+    Range: 0.0 to 5202640.0
+    Mean: 14928.6657, Median: 0.0
+
+29. Total Ground Water Availability in the area (ham) - Fresh
+    Type: integer
+    Missing: 1 (0.14%)
+    Range: 0.0 to 165500869.0
+    Mean: 455298.11, Median: 65556.0
+
+30. Total Ground Water Availability in the area (ham) - Saline
+    Type: integer
+    Missing: 1 (0.14%)
+    Range: 0.0 to 5202640.0
+    Mean: 14312.6272, Median: 0.0
+
+## SAMPLE DATA
+Row 1:
+  S.No: 1
+  STATE: ANDAMAN AND NICOBAR ISLANDS
+  DISTRICT: N & M ANDAMAN
+  Total Rainfall (mm): 3016.0
+  Recharge Worthy Area (ha): 58040.0
+  Hilly Area (ha): 286106.0
+  Total Geographical Area (ha): 344146.0
+  Goundwater Recharge (ham) - Total Rainfall Recharge: 16376.0
+  Goundwater Recharge (ham) - Canals: 0.0
+  Ground Water Recharge (ham) - Surface Water Irrigation: 0.0
+  Ground Water Recharge (ham) - Total Ground Water Irrigration: 0.0
+  Ground Water Recharge (ham) - Tanks and Ponds: 152.0
+  Ground Water Recharge (ham) - Water Conservation Structure: 0.0
+  Ground Water Recharge (ham) - Total: 16528.0
+  Annual Ground water Recharge (ham): 16528.0
+  Environmental Flows (ham): 1653.0
+  Annual Extractable Ground water Resource (ham): 14875.0
+  Ground Water Extraction for all uses (ham) - Domestic: 262.0
+  Ground Water Extraction for all uses (ham) - Industrial: 83.0
+  Ground Water Extraction for all uses (ham) - Irrigation: 1.0
+  Ground Water Extraction for all uses (ham) - Total: 346.0
+  Stage of Ground Water Extraction (%) : 2.0
+  Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham): 269.0
+  Net Annual Ground Water Availability for Future Use (ham): 14522.0
+  In-Storage Unconfined Ground Water Resources(ham) - Fresh: 0.0
+  In-Storage Unconfined Ground Water Resources(ham) - Saline: 0.0
+  Total Ground Water Availability in Unconfined Aquifier (ham) - Fresh: 14875.0
+  Total Ground Water Availability in Unconfined Aquifier (ham) - Saline: 0.0
+  Total Ground Water Availability in the area (ham) - Fresh: 14875.0
+  Total Ground Water Availability in the area (ham) - Saline: 0.0
+
+Row 2:
+  S.No: Total
+  STATE: nan
+  DISTRICT: nan
+  Total Rainfall (mm): 1055.0
+  Recharge Worthy Area (ha): 246428184.0
+  Hilly Area (ha): 45720648.0
+  Total Geographical Area (ha): 292148832.0
+  Goundwater Recharge (ham) - Total Rainfall Recharge: 27817058.0
+  Goundwater Recharge (ham) - Canals: 4315389.0
+  Ground Water Recharge (ham) - Surface Water Irrigation: 6302292.0
+  Ground Water Recharge (ham) - Total Ground Water Irrigration: 5966484.0
+  Ground Water Recharge (ham) - Tanks and Ponds: 1354397.0
+  Ground Water Recharge (ham) - Water Conservation Structure: 1413681.0
+  Ground Water Recharge (ham) - Total: 47222579.0
+  Annual Ground water Recharge (ham): 46830798.0
+  Environmental Flows (ham): 3898199.0
+  Annual Extractable Ground water Resource (ham): 42936738.0
+  Ground Water Extraction for all uses (ham) - Domestic: 2810004.0
+  Ground Water Extraction for all uses (ham) - Industrial: 423465.0
+  Ground Water Extraction for all uses (ham) - Irrigation: 22191865.0
+  Ground Water Extraction for all uses (ham) - Total: 25425334.0
+  Stage of Ground Water Extraction (%) : 61.0
+  Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham): 3633358.0
+  Net Annual Ground Water Availability for Future Use (ham): 18612779.0
+  In-Storage Unconfined Ground Water Resources(ham) - Fresh: 124721719.0
+  In-Storage Unconfined Ground Water Resources(ham) - Saline: 2927777.0
+  Total Ground Water Availability in Unconfined Aquifier (ham) - Fresh: 165500869.0
+  Total Ground Water Availability in Unconfined Aquifier (ham) - Saline: 5202640.0
+  Total Ground Water Availability in the area (ham) - Fresh: 165500869.0
+  Total Ground Water Availability in the area (ham) - Saline: 5202640.0
+
+Row 3:
+  S.No: 563
+  STATE: TAMILNADU
+  DISTRICT: PERAMBALUR
+  Total Rainfall (mm): 894.0
+  Recharge Worthy Area (ha): 159454.0
+  Hilly Area (ha): 9242.0
+  Total Geographical Area (ha): 168696.0
+  Goundwater Recharge (ham) - Total Rainfall Recharge: 10719.0
+  Goundwater Recharge (ham) - Canals: 6924.0
+  Ground Water Recharge (ham) - Surface Water Irrigation: 0.0
+  Ground Water Recharge (ham) - Total Ground Water Irrigration: 8856.0
+  Ground Water Recharge (ham) - Tanks and Ponds: 87.0
+  Ground Water Recharge (ham) - Water Conservation Structure: 2298.0
+  Ground Water Recharge (ham) - Total: 28884.0
+  Annual Ground water Recharge (ham): 28884.0
+  Environmental Flows (ham): 2888.0
+  Annual Extractable Ground water Resource (ham): 25995.0
+  Ground Water Extraction for all uses (ham) - Domestic: 505.0
+  Ground Water Extraction for all uses (ham) - Industrial: 42.0
+  Ground Water Extraction for all uses (ham) - Irrigation: 26970.0
+  Ground Water Extraction for all uses (ham) - Total: 27517.0
+  Stage of Ground Water Extraction (%) : 106.0
+  Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham): 946.0
+  Net Annual Ground Water Availability for Future Use (ham): 7950.0
+  In-Storage Unconfined Ground Water Resources(ham) - Fresh: 0.0
+  In-Storage Unconfined Ground Water Resources(ham) - Saline: 0.0
+  Total Ground Water Availability in Unconfined Aquifier (ham) - Fresh: 25995.0
+  Total Ground Water Availability in Unconfined Aquifier (ham) - Saline: 0.0
+  Total Ground Water Availability in the area (ham) - Fresh: 25995.0
+  Total Ground Water Availability in the area (ham) - Saline: 0.0
+
+
+## NUMERIC STATISTICS
+S.No:
+  Count: 726
+  Mean: 363.5
+  Median: 363.5
+  Std Dev: 209.7224
+  Min: 1.0
+  Max: 726.0
+  Q1: 182.25
+  Q3: 544.75
+  Coefficient of Variation: 0.577
+
+Total Rainfall (mm):
+  Count: 727
+  Mean: 1251.033
+  Median: 1073.0
+  Std Dev: 745.6374
+  Min: 0.0
+  Max: 4420.0
+  Q1: 775.5
+  Q3: 1444.5
+  Coefficient of Variation: 0.596
+
+Recharge Worthy Area (ha):
+  Count: 727
+  Mean: 677931.7208
+  Median: 270090.0
+  Std Dev: 9133111.4575
+  Min: 0.0
+  Max: 246428184.0
+  Q1: 141930.5
+  Q3: 432140.0
+  Coefficient of Variation: 13.472
+
+Hilly Area (ha):
+  Count: 727
+  Mean: 125778.9477
+  Median: 9157.0
+  Std Dev: 1700084.1669
+  Min: 0.0
+  Max: 45720648.0
+  Q1: 0.0
+  Q3: 68569.5
+  Coefficient of Variation: 13.5164
+
+Total Geographical Area (ha):
+  Count: 727
+  Mean: 803710.6768
+  Median: 327100.0
+  Std Dev: 10826089.6793
+  Min: 0.0
+  Max: 292148832.0
+  Q1: 201556.5
+  Q3: 501553.5
+  Coefficient of Variation: 13.4701
+
+Goundwater Recharge (ham) - Total Rainfall Recharge:
+  Count: 726
+  Mean: 76631.0055
+  Median: 30159.0
+  Std Dev: 1031482.6572
+  Min: 0.0
+  Max: 27817058.0
+  Q1: 15547.5
+  Q3: 52736.5
+  Coefficient of Variation: 13.4604
+
+Goundwater Recharge (ham) - Canals:
+  Count: 630
+  Mean: 13699.6635
+  Median: 760.0
+  Std Dev: 173050.7709
+  Min: 0.0
+  Max: 4315389.0
+  Q1: 3.75
+  Q3: 6452.0
+  Coefficient of Variation: 12.6318
+
+Ground Water Recharge (ham) - Surface Water Irrigation:
+  Count: 720
+  Mean: 17506.3903
+  Median: 2701.0
+  Std Dev: 234973.0328
+  Min: 0.0
+  Max: 6302292.0
+  Q1: 389.75
+  Q3: 10480.5
+  Coefficient of Variation: 13.4221
+
+Ground Water Recharge (ham) - Total Ground Water Irrigration:
+  Count: 726
+  Mean: 16436.6116
+  Median: 5964.0
+  Std Dev: 221328.7014
+  Min: 0.0
+  Max: 5966484.0
+  Q1: 1072.5
+  Q3: 11625.5
+  Coefficient of Variation: 13.4656
+
+Ground Water Recharge (ham) - Tanks and Ponds:
+  Count: 681
+  Mean: 3977.6725
+  Median: 690.0
+  Std Dev: 51988.3616
+  Min: 0.0
+  Max: 1354397.0
+  Q1: 232.0
+  Q3: 2113.0
+  Coefficient of Variation: 13.07
+
+Ground Water Recharge (ham) - Water Conservation Structure:
+  Count: 582
+  Mean: 4858.0086
+  Median: 513.0
+  Std Dev: 58742.0731
+  Min: 0.0
+  Max: 1413681.0
+  Q1: 48.5
+  Q3: 2338.5
+  Coefficient of Variation: 12.0918
+
+Ground Water Recharge (ham) - Total:
+  Count: 726
+  Mean: 130089.7576
+  Median: 54858.0
+  Std Dev: 1750986.5614
+  Min: 0.0
+  Max: 47222579.0
+  Q1: 25940.0
+  Q3: 93922.5
+  Coefficient of Variation: 13.4598
+
+Annual Ground water Recharge (ham):
+  Count: 727
+  Mean: 128833.0206
+  Median: 54569.0
+  Std Dev: 1735273.2114
+  Min: 0.0
+  Max: 46830798.0
+  Q1: 25292.5
+  Q3: 91854.5
+  Coefficient of Variation: 13.4692
+
+Environmental Flows (ham):
+  Count: 727
+  Mean: 10724.0633
+  Median: 4600.0
+  Std Dev: 144450.5604
+  Min: 0.0
+  Max: 3898199.0
+  Q1: 2191.5
+  Q3: 7361.5
+  Coefficient of Variation: 13.4698
+
+Annual Extractable Ground water Resource (ham):
+  Count: 727
+  Mean: 118120.3164
+  Median: 49625.0
+  Std Dev: 1590985.8638
+  Min: 0.0
+  Max: 42936738.0
+  Q1: 22918.5
+  Q3: 84986.5
+  Coefficient of Variation: 13.4692
+
+Ground Water Extraction for all uses (ham) - Domestic:
+  Count: 727
+  Mean: 7730.4113
+  Median: 2562.0
+  Std Dev: 104151.0306
+  Min: 0.0
+  Max: 2810004.0
+  Q1: 1170.0
+  Q3: 5120.5
+  Coefficient of Variation: 13.4729
+
+Ground Water Extraction for all uses (ham) - Industrial:
+  Count: 726
+  Mean: 1166.5565
+  Median: 103.5
+  Std Dev: 15755.6434
+  Min: 0.0
+  Max: 423465.0
+  Q1: 13.0
+  Q3: 582.75
+  Coefficient of Variation: 13.5061
+
+Ground Water Extraction for all uses (ham) - Irrigation:
+  Count: 726
+  Mean: 61134.6157
+  Median: 22953.5
+  Std Dev: 823172.2619
+  Min: 0.0
+  Max: 22191865.0
+  Q1: 4098.0
+  Q3: 44761.25
+  Coefficient of Variation: 13.4649
+
+Ground Water Extraction for all uses (ham) - Total:
+  Count: 712
+  Mean: 71419.4944
+  Median: 28279.5
+  Std Dev: 952193.9913
+  Min: 0.0
+  Max: 25425334.0
+  Q1: 8244.5
+  Q3: 51327.0
+  Coefficient of Variation: 13.3324
+
+Stage of Ground Water Extraction (%) :
+  Count: 712
+  Mean: 59.1433
+  Median: 52.0
+  Std Dev: 46.9122
+  Min: 0.0
+  Max: 322.0
+  Q1: 31.0
+  Q3: 72.0
+  Coefficient of Variation: 0.7932
+
+Allocation of Ground Water Resource for Domestic Utilisation for projected year 2025 (ham):
+  Count: 727
+  Mean: 9995.4938
+  Median: 3111.0
+  Std Dev: 134882.981
+  Min: 0.0
+  Max: 3633358.0
+  Q1: 1552.5
+  Q3: 6320.5
+  Coefficient of Variation: 13.4944
+
+Net Annual Ground Water Availability for Future Use (ham):
+  Count: 727
+  Mean: 51204.337
+  Median: 18955.0
+  Std Dev: 689844.6935
+  Min: 0.0
+  Max: 18612779.0
+  Q1: 5629.0
+  Q3: 36791.5
+  Coefficient of Variation: 13.4724
+
+In-Storage Unconfined Ground Water Resources(ham) - Fresh:
+  Count: 727
+  Mean: 343113.3906
+  Median: 0.0
+  Std Dev: 4669619.8612
+  Min: 0.0
+  Max: 124721719.0
+  Q1: 0.0
+  Q3: 1935.0
+  Coefficient of Variation: 13.6096
+
+In-Storage Unconfined Ground Water Resources(ham) - Saline:
+  Count: 697
+  Mean: 8401.0803
+  Median: 0.0
+  Std Dev: 124866.1848
+  Min: 0.0
+  Max: 2927777.0
+  Q1: 0.0
+  Q3: 0.0
+  Coefficient of Variation: 14.8631
+
+Total Ground Water Availability in Unconfined Aquifier (ham) - Fresh:
+  Count: 727
+  Mean: 455298.11
+  Median: 65556.0
+  Std Dev: 6169130.6548
+  Min: 0.0
+  Max: 165500869.0
+  Q1: 34615.5
+  Q3: 113467.0
+  Coefficient of Variation: 13.5497
+
+Total Ground Water Availability in Unconfined Aquifier (ham) - Saline:
+  Count: 697
+  Mean: 14928.6657
+  Median: 0.0
+  Std Dev: 206875.5873
+  Min: 0.0
+  Max: 5202640.0
+  Q1: 0.0
+  Q3: 0.0
+  Coefficient of Variation: 13.8576
+
+Total Ground Water Availability in the area (ham) - Fresh:
+  Count: 727
+  Mean: 455298.11
+  Median: 65556.0
+  Std Dev: 6169130.6548
+  Min: 0.0
+  Max: 165500869.0
+  Q1: 34615.5
+  Q3: 113467.0
+  Coefficient of Variation: 13.5497
+
+Total Ground Water Availability in the area (ham) - Saline:
+  Count: 727
+  Mean: 14312.6272
+  Median: 0.0
+  Std Dev: 202577.9993
+  Min: 0.0
+  Max: 5202640.0
+  Q1: 0.0
+  Q3: 0.0
+  Coefficient of Variation: 14.1538
+
+## CATEGORICAL DATA
+STATE:
+  Unique values: 37
+  Top values:
+    'UTTAR PRADESH': 75
+    'MADHYA PRADESH': 55
+    'BIHAR': 38
+    'TAMILNADU': 38
+    'MAHARASHTRA': 36
+    'GUJARAT': 34
+    'CHHATTISGARH': 33
+    'TELANGANA': 33
+    'RAJASTHAN': 33
+    'KARNATAKA': 31
+
+## USAGE NOTES
+- This index provides comprehensive metadata about your CSV file
+- Use column names exactly as shown in the schema section
+- Pay attention to data types when writing analysis code
+- Consider missing data percentages when performing calculations
+- Sample data shows actual values from your dataset
+
+## FOR LLM CODE GENERATION
+When generating Python code for this dataset:
+1. Use pandas to load the CSV: df = pd.read_csv('filename.csv')
+2. Handle missing values appropriately based on null percentages shown
+3. Use correct data types as specified in the schema
+4. Reference the sample data to understand value formats
+5. Consider the data distribution when choosing analysis methods
