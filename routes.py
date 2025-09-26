@@ -559,10 +559,12 @@ class Routes:
     
     async def forecast(self, csv_data: CSVForecastDataInput):
         df = pd.read_csv(StringIO(csv_data.csv_content))
+        cols = csv_data.cols
         df = clean_forecast_data(df, 2)
         try:
             forecast_result = forecast_data(
                 df=df,
+                cols=cols,
                 predict_all_columns=csv_data.all_col,
                 forecast_years=csv_data.yrs
             )
