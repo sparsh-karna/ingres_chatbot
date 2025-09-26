@@ -420,16 +420,25 @@ async def microservices_webhook(From: str = Form(default=""), To: str = Form(def
 
         # For WhatsApp, we need to specify the To field in the Message tag
         if From.startswith("whatsapp:"):
-            twiml = f"<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Message to=\"{From}\">{_xml_escape(response_text)}</Message></Response>"
+            twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Message to="{From}">{_xml_escape(response_text)}</Message>
+</Response>"""
         else:
-            twiml = f"<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Message>{_xml_escape(response_text)}</Message></Response>"
+            twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Message>{_xml_escape(response_text)}</Message>
+</Response>"""
         
         logger.info(f"Returning microservices TwiML response: {twiml[:200]}...")
         return Response(content=twiml, media_type="text/xml")
         
     except Exception as e:
         logger.error(f"Error in microservices webhook: {e}")
-        twiml = f"<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Message>Sorry, an error occurred: {_xml_escape(str(e))}</Message></Response>"
+        twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Message>Sorry, an error occurred: {_xml_escape(str(e))}</Message>
+</Response>"""
         return Response(content=twiml, media_type="text/xml")
 
 @app.get("/microservices/test")
@@ -502,15 +511,24 @@ async def twilio_sms(From: str = Form(default=""), To: str = Form(default=""), B
 
         # For WhatsApp, we need to specify the To field in the Message tag
         if From.startswith("whatsapp:"):
-            twiml = f"<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Message to=\"{From}\">{_xml_escape(message_text)}</Message></Response>"
+            twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Message to="{From}">{_xml_escape(message_text)}</Message>
+</Response>"""
         else:
-            twiml = f"<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Message>{_xml_escape(message_text)}</Message></Response>"
+            twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Message>{_xml_escape(message_text)}</Message>
+</Response>"""
         
         logger.info(f"Returning TwiML response: {twiml[:200]}...")
         return Response(content=twiml, media_type="text/xml")
     except Exception as e:
         logger.error(f"Error in Twilio webhook: {e}")
-        twiml = f"<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Message>Sorry, an error occurred: {_xml_escape(str(e))}</Message></Response>"
+        twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Message>Sorry, an error occurred: {_xml_escape(str(e))}</Message>
+</Response>"""
         return Response(content=twiml, media_type="text/xml")
 
 
