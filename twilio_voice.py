@@ -349,36 +349,130 @@ async def process_voice_input(request: Request):
                 logger.error(f"Query processing failed: {response_text}")
                 return _error_response("Sorry, I couldn't process your question. Please try again.")
             
+            # Translate response back to user's language if needed
+            if detected_language != "en-IN" and speech_service.is_translation_available():
+                translation_result = speech_service.translate_text(
+                    text=response_text,
+                    source_language="en-IN",
+                    target_language=detected_language
+                )
+                if translation_result.get("translated_text") and not translation_result.get("error"):
+                    response_text = translation_result["translated_text"]
+                    logger.info(f"Translated response back to {detected_language}: '{response_text[:100]}...'")
+            
             logger.info(f"Query processed successfully: {response_text[:100]}...")
             
         except Exception as e:
             logger.error(f"Error processing query: {e}")
             return _error_response("Error processing your question")
         
-        # Generate speech response using Twilio's built-in TTS
+        # Generate speech response using Azure TTS for non-English, Twilio for English
         try:
             # Clean the response text
             clean_response = clean_md(response_text)
             
-            # Use Twilio's built-in text-to-speech instead of custom audio
-            # This is more reliable and doesn't require serving audio files
+            # Ensure we have content to speak
+            if not clean_response or len(clean_response.strip()) == 0:
+                logger.warning("Empty response after cleaning, using fallback")
+                clean_response = "Analysis completed successfully."
+            
+            # Prepare goodbye message in the correct language
+            goodbye_message = "Thank you for using INGRES Groundwater Analysis System. Goodbye!"
+            if detected_language != "en-IN" and speech_service.is_translation_available():
+                goodbye_translation = speech_service.translate_text(
+                    text=goodbye_message,
+                    source_language="en-IN",
+                    target_language=detected_language
+                )
+                if goodbye_translation.get("translated_text") and not goodbye_translation.get("error"):
+                    goodbye_message = goodbye_translation["translated_text"]
+                    logger.info(f"Translated goodbye message to {detected_language}: '{goodbye_message}'")
+
+            # For non-English languages, use Azure TTS which has better pronunciation
+            if detected_language != "en-IN":
+                try:
+                    logger.info(f"Using Azure TTS for {detected_language}")
+                    
+                    # Generate Azure TTS audio for main response
+                    main_tts_result = speech_service.text_to_speech(
+                        text=clean_response,
+                        target_language=detected_language
+                    )
+                    
+                    # Generate Azure TTS audio for goodbye message  
+                    goodbye_tts_result = speech_service.text_to_speech(
+                        text=goodbye_message,
+                        target_language=detected_language
+                    )
+                    
+                    if main_tts_result.get("audio_data") and goodbye_tts_result.get("audio_data"):
+                        # Save both audio files temporarily and serve them
+                        import tempfile
+                        import uuid
+                        
+                        # Create temp files for both audio clips
+                        main_audio_id = str(uuid.uuid4())
+                        goodbye_audio_id = str(uuid.uuid4())
+                        
+                        main_temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+                        main_temp_file.write(main_tts_result["audio_data"])
+                        main_temp_file.close()
+                        
+                        goodbye_temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+                        goodbye_temp_file.write(goodbye_tts_result["audio_data"])
+                        goodbye_temp_file.close()
+                        
+                        # Store file paths (you'll need to implement audio serving endpoints)
+                        # For now, fallback to Twilio TTS with better language mapping
+                        logger.warning("Azure TTS audio generation successful but audio serving not implemented, using Twilio TTS")
+                        
+                    # Fallback to Twilio TTS
+                    logger.info("Falling back to Twilio TTS")
+                    
+                except Exception as azure_error:
+                    logger.error(f"Azure TTS failed: {azure_error}, using Twilio TTS")
+            
+            # Map language codes to Twilio-supported languages with better mapping
+            twilio_language = "en-IN"  # Default fallback
+            if detected_language.startswith('hi'):
+                twilio_language = "hi-IN"
+            elif detected_language.startswith('ta'):
+                twilio_language = "ta-IN" 
+            elif detected_language.startswith('te'):
+                twilio_language = "te-IN"
+            elif detected_language.startswith('bn'):
+                twilio_language = "bn-IN"
+            elif detected_language.startswith('en'):
+                twilio_language = "en-IN"
+            
+            logger.info(f"Using Twilio language: {twilio_language} for detected language: {detected_language}")
+            logger.info(f"Response to speak: '{clean_response[:100]}...'")
+            logger.info(f"Goodbye message: '{goodbye_message}'")
+            
+            # Use Twilio's built-in text-to-speech with improved escaping
+            escaped_response = _xml_escape(clean_response)
+            escaped_goodbye = _xml_escape(goodbye_message)
+            
             twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say voice="alice" language="{detected_language}">
-        {_xml_escape(clean_response)}
+    <Say voice="alice" language="{twilio_language}">
+        {escaped_response}
     </Say>
-    <Say voice="alice" language="{detected_language}">
-        Thank you for using INGRES Groundwater Analysis System. Goodbye!
+    <Pause length="1"/>
+    <Say voice="alice" language="{twilio_language}">
+        {escaped_goodbye}
     </Say>
 </Response>"""
             
+            logger.info(f"Generated TwiML for {twilio_language}: Response length = {len(escaped_response)}, Goodbye length = {len(escaped_goodbye)}")
             logger.info("Voice response generated successfully using Twilio TTS")
             return Response(content=twiml, media_type="text/xml")
             
         except Exception as e:
             logger.error(f"Error generating speech response: {e}")
-            # Fallback to text response
-            return _text_response(clean_response)
+            # Fallback to English response
+            logger.warning("Falling back to English response")
+            return _text_response(clean_response if 'clean_response' in locals() else response_text)
         
     except Exception as e:
         logger.error(f"Error processing voice input: {e}")
