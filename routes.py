@@ -13,9 +13,10 @@ from datetime import datetime
 from io import StringIO
 
 from models import (
-    CSVData, QueryRequest, ChatRequest, QueryResponse, ChatResponse, 
-    SessionResponse, SessionsListResponse, ChatHistoryResponse, 
-    HealthResponse, ErrorResponse, CSVForecastDataInput, EDADataInput
+    CSVData, QueryRequest, ChatRequest, QueryResponse, ChatResponse,
+    SessionResponse, SessionsListResponse, ChatHistoryResponse,
+    HealthResponse, ErrorResponse, CSVForecastDataInput, EDADataInput,
+    GeneralChatRequest, GeneralChatResponse
 )
 from helpers import (
     convert_numpy_types, get_or_create_session_id, add_message_to_session,
@@ -32,13 +33,31 @@ logger = logging.getLogger(__name__)
 
 class Routes:
     """Route handlers for the FastAPI application"""
-    
+
     def __init__(self, db_manager, query_processor, llm, speech_service=None):
         self.db_manager = db_manager
         self.query_processor = query_processor
         self.llm = llm
         self.speech_service = speech_service
-    
+        self.general_chat_service = None
+        self._init_general_chat_service()
+
+    def _init_general_chat_service(self):
+        """Initialize the general chat service"""
+        try:
+            if self.llm:
+                from generalChat.generalChat import GeneralChatService, ensure_context_exists
+                # Ensure context file exists
+                ensure_context_exists()
+                # Initialize the service
+                self.general_chat_service = GeneralChatService(self.llm)
+                logger.info("General chat service initialized successfully")
+            else:
+                logger.warning("LLM not available, general chat service disabled")
+        except Exception as e:
+            logger.error(f"Failed to initialize general chat service: {e}")
+            self.general_chat_service = None
+
     async def root(self) -> Dict[str, str]:
         """Root endpoint"""
         return {
@@ -47,7 +66,8 @@ class Routes:
             "documentation": "/docs",
             "endpoints": {
                 "query": "/query",
-                "chat": "/chat", 
+                "chat": "/chat",
+                "general_chat": "/general-chat",
                 "new_session": "/chat/new-session",
                 "sessions": "/chat/sessions",
                 "session_history": "/chat/{session_id}/history",
@@ -558,3 +578,50 @@ class Routes:
         except Exception as e:
             logger.error(f"Error in EDA analysis: {e}")
             raise HTTPException(status_code=500, detail=str(e))
+
+    async def process_general_chat(self, request: GeneralChatRequest) -> GeneralChatResponse:
+        """Process general chat questions using LLM and dataset context"""
+        try:
+            logger.info(f"Processing general chat question: {request.question}")
+
+            if not self.general_chat_service:
+                return GeneralChatResponse(
+                    success=False,
+                    response="General chat service is not available. Please ensure the LLM is configured and the context file exists.",
+                    session_id=request.session_id,
+                    error="Service not available"
+                )
+
+            # Process the question using the general chat service
+            result = await self.general_chat_service.process_question(request.question)
+
+            if result["success"]:
+                logger.info("General chat question processed successfully")
+                return GeneralChatResponse(
+                    success=True,
+                    response=result["response"],
+                    session_id=request.session_id,
+                    error="",
+                    metadata={
+                        "question_length": len(request.question),
+                        "response_length": len(result["response"]),
+                        "service_type": "general_chat"
+                    }
+                )
+            else:
+                logger.error(f"General chat processing failed: {result['error']}")
+                return GeneralChatResponse(
+                    success=False,
+                    response=result["response"],
+                    session_id=request.session_id,
+                    error=result["error"]
+                )
+
+        except Exception as e:
+            logger.error(f"Error processing general chat: {e}")
+            return GeneralChatResponse(
+                success=False,
+                response="Sorry, I encountered an error while processing your question. Please try again.",
+                session_id=request.session_id,
+                error=str(e)
+            )

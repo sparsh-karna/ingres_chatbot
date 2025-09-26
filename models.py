@@ -122,3 +122,18 @@ class CSVForecastDataInput(BaseModel):
 class EDADataInput(BaseModel):
     csv_content: str
     user_query: str
+
+
+class GeneralChatRequest(BaseModel):
+    """Request model for general chat interactions"""
+    question: str = Field(..., description="General question about the groundwater dataset")
+    session_id: Optional[str] = Field(default=None, description="Optional session ID for conversation tracking")
+
+
+class GeneralChatResponse(BaseModel):
+    """Response model for general chat interactions"""
+    success: bool = Field(..., description="Whether the request was successful")
+    response: str = Field(..., description="AI response to the question")
+    session_id: Optional[str] = Field(default=None, description="Session ID if provided")
+    error: str = Field(default="", description="Error message if any")
+    metadata: Optional[Dict] = Field(default=None, description="Additional response metadata")
