@@ -953,7 +953,7 @@ IMPORTANT RULES:
 - Store all plotly figures in result['figures'] as a list
 - Use descriptive keys in the result dictionary
 - Do NOT call fig.show() - just create and store the figures
-- Choose the best variant of plots for each type of data and analysiss
+- Choose the best variant of plots for each type of data and analysis. Always include a correlation matrix and a line graph if applicable
 
 EXAMPLE STRUCTURE:
 def analyze_data(df):
