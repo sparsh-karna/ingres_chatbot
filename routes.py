@@ -71,7 +71,14 @@ class Routes:
                 "new_session": "/chat/new-session",
                 "sessions": "/chat/sessions",
                 "session_history": "/chat/{session_id}/history",
-                "health": "/health"
+                "health": "/health",
+                "twilio_sms_whatsapp": "/twilio/sms",
+                "twilio_voice_incoming": "/twilio/voice/incoming",
+                "twilio_voice_process": "/twilio/voice/process",
+                "microservices_status": "/microservices/status",
+                "microservices_webhook": "/microservices/webhook",
+                "microservices_test": "/microservices/test",
+                "microservices_health": "/microservices/health"
             }
         }
     
