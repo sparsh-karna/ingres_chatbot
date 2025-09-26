@@ -957,6 +957,7 @@ IMPORTANT RULES:
 - Use descriptive keys in the result dictionary
 - Do NOT call fig.show() - just create and store the figures
 - Choose the best variant of plots for each type of data and analysis. Always include a correlation matrix and a line graph if applicable
+- The numbers in the plots should be limited to 2 decimal places and the names of columns and labels should be short and graphs clean and simple.
 
 EXAMPLE STRUCTURE:
 def analyze_data(df):
