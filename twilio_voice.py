@@ -6,12 +6,11 @@ Handles incoming calls, speech-to-text, query processing, and text-to-speech res
 import os
 import logging
 import requests
+import time
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import Response
 from dotenv import load_dotenv
 from speech_service import SpeechLanguageService
-from query_processor import QueryProcessor
-from database_manager import DatabaseManager
 from helpers import clean_md
 import asyncio
 import base64
@@ -26,31 +25,181 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app
 app = FastAPI(title="Twilio Voice Integration")
 
+# Service endpoints
+SERVICES = {
+    "query_processor": "http://localhost:8001",
+    "code_executor": "http://localhost:8002",
+    "result_analyzer": "http://localhost:8003"
+}
+
+# Default files
+DEFAULT_CSV_FILE = "2024-2025.csv"
+DEFAULT_INDEX_FILE = "index_2024-2025.txt"
+
 # Global variables
 speech_service = None
-query_processor = None
-db_manager = None
+
+def check_service_health(service_url: str) -> bool:
+    """Check if a service is running"""
+    try:
+        response = requests.get(f"{service_url}/", timeout=2)
+        return response.status_code == 200
+    except:
+        return False
+
+def get_crisp_summary(analysis_result: dict) -> str:
+    """Extract a crisp summary from analysis result"""
+    try:
+        # Try to get the most important information
+        explanation = analysis_result.get('explanation', '')
+        key_insights = analysis_result.get('key_insights', [])
+
+        # Start with the first key insight if available
+        if key_insights and len(key_insights) > 0:
+            summary = key_insights[0]
+        else:
+            # Fallback to explanation
+            summary = explanation
+
+        # Clean and limit to reasonable length for voice
+        summary = summary.strip()
+        if len(summary) > 500:
+            summary = summary[:497] + "..."
+
+        return summary
+
+    except Exception as e:
+        logger.error(f"Error creating summary: {e}")
+        return "Analysis completed successfully."
+
+def process_query_with_services(query: str) -> str:
+    """Process query using microservices pipeline"""
+    try:
+        start_time = time.time()
+
+        # Step 1: Generate code using query processor
+        logger.info(f"Generating code for query: {query}")
+        query_payload = {
+            "query": query,
+            "index_file": DEFAULT_INDEX_FILE,
+            "csv_file": DEFAULT_CSV_FILE
+        }
+
+        code_response = requests.post(
+            f"{SERVICES['query_processor']}/generate-code",
+            json=query_payload,
+            timeout=30
+        )
+
+        if code_response.status_code != 200:
+            logger.error(f"Code generation failed: {code_response.status_code}")
+            return "Sorry, I couldn't generate code for your query."
+
+        code_result = code_response.json()
+        generated_code = code_result.get('code', '')
+
+        if not generated_code:
+            return "Sorry, no code was generated for your query."
+
+        # Step 2: Execute the code
+        logger.info("Executing generated code")
+        execution_payload = {
+            "code": generated_code,
+            "csv_file": DEFAULT_CSV_FILE,
+            "include_analysis": True,
+            "original_query": query
+        }
+
+        execution_response = requests.post(
+            f"{SERVICES['code_executor']}/execute-with-analysis",
+            json=execution_payload,
+            timeout=60
+        )
+
+        if execution_response.status_code != 200:
+            logger.error(f"Code execution failed: {execution_response.status_code}")
+            return "Sorry, I couldn't execute the analysis."
+
+        execution_result = execution_response.json()
+
+        if not execution_result.get('success', False):
+            error_msg = execution_result.get('error', 'Unknown error')
+            logger.error(f"Execution failed: {error_msg}")
+            return "Sorry, the analysis failed to complete."
+
+        # Step 3: Get analysis if not included in execution
+        analysis_result = execution_result.get('analysis')
+        if not analysis_result:
+            # Call result analyzer separately
+            logger.info("Getting analysis from result analyzer")
+            analysis_payload = {
+                "query": query,
+                "print_output": execution_result.get('print_output', ''),
+                "dataframes": execution_result.get('dataframes', []),
+                "variables": execution_result.get('variables', {}),
+                "execution_time": execution_result.get('execution_time', 0)
+            }
+
+            analysis_response = requests.post(
+                f"{SERVICES['result_analyzer']}/analyze-results",
+                json=analysis_payload,
+                timeout=30
+            )
+
+            if analysis_response.status_code == 200:
+                analysis_result = analysis_response.json()
+
+        # Step 4: Create summary for voice response
+        if analysis_result:
+            summary = get_crisp_summary(analysis_result)
+        else:
+            # Fallback: extract from print output
+            print_output = execution_result.get('print_output', '')
+            if print_output:
+                lines = print_output.strip().split('\n')
+                summary = lines[-1] if lines else "Analysis completed"
+                if len(summary) > 500:
+                    summary = summary[:497] + "..."
+            else:
+                summary = "Analysis completed successfully"
+
+        total_time = time.time() - start_time
+        logger.info(f"Query processed in {total_time:.2f}s: {summary}")
+
+        return summary
+
+    except requests.exceptions.Timeout:
+        logger.error("Request timeout")
+        return "Sorry, the analysis is taking too long. Please try again."
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Request error: {e}")
+        return "Sorry, I'm having trouble connecting to the analysis services."
+    except Exception as e:
+        logger.error(f"Error processing query: {e}")
+        return "Sorry, there was an error processing your request."
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
-    global speech_service, query_processor, db_manager
+    global speech_service
     
     logger.info("Initializing Twilio Voice services...")
     
     try:
-        # Initialize database manager
-        db_manager = DatabaseManager()
-        
-        # Initialize query processor
-        query_processor = QueryProcessor(db_manager)
-        
         # Initialize speech service
         speech_service = SpeechLanguageService()
         if speech_service.is_available():
             logger.info("Speech service initialized successfully")
         else:
             logger.warning("Speech service not available - voice functionality will be disabled")
+        
+        # Check if required microservices are running
+        required_services = ['query_processor', 'code_executor']
+        for service_name in required_services:
+            if check_service_health(SERVICES[service_name]):
+                logger.info(f"✅ {service_name} service is available")
+            else:
+                logger.warning(f"⚠️ {service_name} service is not available")
         
         logger.info("Twilio Voice services initialized successfully")
         
@@ -186,53 +335,44 @@ async def process_voice_input(request: Request):
                     question_for_sql = translation_result["translated_text"]
                     logger.info(f"Translated for SQL processing: '{question_for_sql}'")
             
-            # Process the query
-            result = query_processor.process_user_query(
-                question_for_sql,
-                include_visualization=False
-            )
+            # Check if required services are running
+            required_services = ['query_processor', 'code_executor']
+            for service_name in required_services:
+                if not check_service_health(SERVICES[service_name]):
+                    logger.error(f"Service {service_name} is not available")
+                    return _error_response(f"Sorry, the {service_name.replace('_', ' ')} service is not available.")
             
-            if not result.get('success', False):
-                error_msg = result.get('error', 'Unknown error occurred')
-                logger.error(f"Query processing failed: {error_msg}")
-                return _error_response(f"Sorry, I couldn't process your question: {error_msg}")
+            # Process the query using microservices pipeline
+            response_text = process_query_with_services(question_for_sql)
             
-            response_text = result.get('response', 'No response generated')
+            if not response_text or response_text.startswith("Sorry,"):
+                logger.error(f"Query processing failed: {response_text}")
+                return _error_response("Sorry, I couldn't process your question. Please try again.")
+            
             logger.info(f"Query processed successfully: {response_text[:100]}...")
             
         except Exception as e:
             logger.error(f"Error processing query: {e}")
             return _error_response("Error processing your question")
         
-        # Generate speech response
+        # Generate speech response using Twilio's built-in TTS
         try:
             # Clean the response text
             clean_response = clean_md(response_text)
             
-            # Generate audio response in the detected language
-            tts_result = speech_service.text_to_speech(
-                text=clean_response,
-                target_language=detected_language
-            )
-            
-            if not tts_result.get("audio_data"):
-                # Fallback to text response if TTS fails
-                logger.warning("TTS failed, using text response")
-                return _text_response(clean_response)
-            
-            # Convert audio to base64 for TwiML
-            audio_base64 = base64.b64encode(tts_result["audio_data"]).decode('utf-8')
-            
-            # Create TwiML with audio response
+            # Use Twilio's built-in text-to-speech instead of custom audio
+            # This is more reliable and doesn't require serving audio files
             twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Play>data:audio/mp3;base64,{audio_base64}</Play>
+    <Say voice="alice" language="{detected_language}">
+        {_xml_escape(clean_response)}
+    </Say>
     <Say voice="alice" language="{detected_language}">
         Thank you for using INGRES Groundwater Analysis System. Goodbye!
     </Say>
 </Response>"""
             
-            logger.info("Voice response generated successfully")
+            logger.info("Voice response generated successfully using Twilio TTS")
             return Response(content=twiml, media_type="text/xml")
             
         except Exception as e:
@@ -289,11 +429,19 @@ def _text_response(message: str) -> Response:
 @app.get("/twilio/voice/health")
 async def health_check():
     """Health check endpoint"""
+    # Check service health
+    service_status = {}
+    for service_name, service_url in SERVICES.items():
+        service_status[service_name] = check_service_health(service_url)
+
+    all_healthy = all(service_status.values())
+    
     return {
-        "status": "healthy",
+        "status": "healthy" if all_healthy else "degraded",
         "speech_service": speech_service.is_available() if speech_service else False,
-        "query_processor": query_processor is not None,
-        "database": db_manager is not None
+        "services": service_status,
+        "csv_file": DEFAULT_CSV_FILE,
+        "index_file": DEFAULT_INDEX_FILE
     }
 
 if __name__ == "__main__":
@@ -301,6 +449,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "twilio_voice:app",
         host="0.0.0.0",
-        port=8002,  # Different port from main app
+        port=8010,  # Different port from main app
         reload=True
     )
