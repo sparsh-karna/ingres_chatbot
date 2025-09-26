@@ -5,6 +5,7 @@ Handles incoming calls, speech-to-text, query processing, and text-to-speech res
 
 import os
 import logging
+import requests
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import Response
 from dotenv import load_dotenv
@@ -131,10 +132,21 @@ async def process_voice_input(request: Request):
             return _error_response("Speech service not available")
         
         # Download and process the recording
-        import requests
         try:
-            # Download the recording
-            response = requests.get(recording_url, timeout=30)
+            # Download the recording with Twilio authentication
+            twilio_account_sid = os.getenv("TWILIO_ACCOUNT_SID")
+            twilio_auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+            
+            if not twilio_account_sid or not twilio_auth_token:
+                logger.error("Twilio credentials not found in environment variables")
+                return _error_response("Twilio credentials not configured")
+            
+            # Download with HTTP Basic Auth
+            response = requests.get(
+                recording_url, 
+                auth=(twilio_account_sid, twilio_auth_token),
+                timeout=30
+            )
             response.raise_for_status()
             audio_data = response.content
             
