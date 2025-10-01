@@ -1,4 +1,4 @@
-# 💧 INGRES AI ChatBot
+# JalDrishti
 
 **An AI-driven Multilingual Virtual Assistant for India Ground Water Resource Estimation System (INGRES)**
 
